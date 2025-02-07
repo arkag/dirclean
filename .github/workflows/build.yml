@@ -1,12 +1,10 @@
 name: Build Go Program
 
 on:
-  push:
-    branches:
-      - main  # Trigger on pushes to the main branch
-  pull_request:
-    branches:
-      - main  # Trigger on pull requests targeting the main branch
+  release:
+    types:
+      - published  # Trigger when a new release is published
+      - edited     # Trigger when an existing release is edited
 
 jobs:
   build:
