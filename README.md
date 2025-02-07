@@ -4,7 +4,7 @@ DirClean is a Go program designed to clean up old files from directories based o
 
 ---
 
-## Attribution
+## Attribution -- AKA Boiling the Ocean
 
 This project was developed with the assistance of **DeepSeek-V3**, an AI language model created by DeepSeek. Contributions include:
 - Writing and debugging the Go program (`dirclean.go`).
