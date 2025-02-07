@@ -1,0 +1,36 @@
+name: Build Go Program
+
+on:
+  push:
+    branches:
+      - main  # Trigger on pushes to the main branch
+  pull_request:
+    branches:
+      - main  # Trigger on pull requests targeting the main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
+
+    steps:
+      # Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'  # Specify the Go version you want to use
+
+      # Build the Go program
+      - name: Build
+        run: |
+          go build -o dirclean ./dirclean.go
+
+      # Upload the compiled binary as an artifact
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dirclean
+          path: dirclean
