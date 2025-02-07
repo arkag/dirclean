@@ -12,6 +12,16 @@ jobs:
   build:
     runs-on: ubuntu-latest  # Use the latest Ubuntu runner
 
+    strategy:
+      matrix:
+        platform:
+          - os: darwin
+            arch: arm64
+            binary_name: dirclean-darwin-arm64
+          - os: linux
+            arch: amd64
+            binary_name: dirclean-linux-amd64
+
     steps:
       # Check out the repository
       - name: Checkout code
@@ -23,14 +33,14 @@ jobs:
         with:
           go-version: '1.21'  # Specify the Go version you want to use
 
-      # Build the Go program
+      # Build the Go program for the target platform
       - name: Build
         run: |
-          go build -o dirclean ./dirclean.go
+          GOOS=${{ matrix.platform.os }} GOARCH=${{ matrix.platform.arch }} go build -o ${{ matrix.platform.binary_name }} ./dirclean.go
 
       # Upload the compiled binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: dirclean
-          path: dirclean
+          name: ${{ matrix.platform.binary_name }}
+          path: ${{ matrix.platform.binary_name }}
