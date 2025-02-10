@@ -12,6 +12,9 @@ jobs:
     permissions:
       contents: write  # Required to create a release and upload assets
 
+    outputs:
+      semVer: ${{ steps.gitversion.outputs.semVer }}  # Define the output
+
     steps:
       # Check out the repository
       - name: Checkout code
