@@ -9,6 +9,9 @@ jobs:
   version:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write  # Required to create a release and upload assets
+
     steps:
       # Check out the repository
       - name: Checkout code
