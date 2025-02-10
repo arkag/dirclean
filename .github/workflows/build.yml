@@ -24,14 +24,14 @@ jobs:
 
       # Set up GitVersion
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v1  # Latest stable version as of February 2025
+        uses: gittools/actions/gitversion/setup@v3.1.11  # Latest stable version as of February 2025
         with:
           versionSpec: '6.x'  # Use GitVersion 6.x (latest as of February 2025)
 
       # Calculate the next version
       - name: Determine version
         id: gitversion
-        uses: gittools/actions/gitversion/execute@v1  # Latest stable version as of February 2025
+        uses: gittools/actions/gitversion/execute@v3.1.11  # Latest stable version as of February 2025
         with:
           useConfigFile: false  # Use a GitVersion configuration file (optional)
 
