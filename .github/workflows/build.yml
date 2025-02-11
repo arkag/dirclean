@@ -12,9 +12,6 @@ jobs:
     permissions:
       contents: write  # Required to create a release and upload assets
 
-    outputs:
-      semVer: ${{ steps.gitversion.outputs.semVer }}  # Define the output
-
     steps:
       # Check out the repository
       - name: Checkout code
@@ -98,24 +95,12 @@ jobs:
           path: artifacts
 
       # Create a release
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v2  # Latest stable version as of February 2025
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the default GITHUB_TOKEN
+      - name: Create release with GitReleaseManager
+        uses: gittools/actions/gitreleasemanager/create@v3.1.11
         with:
-          tag_name: ${{ needs.version.outputs.semVer }}  # Use the version from GitVersion
-          release_name: Release ${{ needs.version.outputs.semVer }}
-          draft: false
-          prerelease: false
-
-      # Upload all artifacts to the release
-      - name: Upload release assets
-        uses: actions/upload-release-asset@v2  # Latest stable version as of February 2025
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use the default GITHUB_TOKEN
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}  # Use the upload URL from the create-release step
-          asset_path: artifacts/${{ matrix.platform.binary_name }}    # Path to the binary
-          asset_name: ${{ matrix.platform.binary_name }}             # Name of the asset
-          asset_content_type: application/octet-stream              # Content type for binary files
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: 'arkag'
+          repository: 'dirclean'
+          milestone: ${{ needs.version.outputs.semVer }}
+          name: Release ${{ needs.version.outputs.semVer }}
+          assets: artifacts/*
