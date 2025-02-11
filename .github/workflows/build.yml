@@ -117,5 +117,5 @@ jobs:
           milestone: ${{ needs.version.outputs.semVer }}
           name: Release ${{ needs.version.outputs.semVer }}
           assets: |
-            artifacts/dirclean-darwin-arm64
-            artifacts/dirclean-linux-amd64
+            ${{ github.workspace }}/artifacts/dirclean-darwin-arm64
+            ${{ github.workspace }}/artifacts/dirclean-linux-amd64
