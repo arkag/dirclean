@@ -99,7 +99,7 @@ jobs:
       # List downloaded artifacts for debugging
       - name: List artifacts
         run: |
-          ls -R artifacts
+          ls -lahR artifacts
 
       # Install GitReleaseManager
       - name: Install GitReleaseManager
