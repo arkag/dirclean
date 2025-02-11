@@ -1,4 +1,4 @@
-name: Build and Version
+name: Build and Release
 
 on:
   push:
@@ -96,25 +96,22 @@ jobs:
           pattern: 'dirclean-*'  # Ensure only the relevant artifacts are downloaded
           merge-multiple: true   # Merge artifacts into a single directory
 
-      # List downloaded artifacts for debugging
-      - name: List artifacts
+      # Create a GitHub release using the GitHub CLI (gh)
+      - name: Create GitHub Release
         run: |
-          ls -lahR artifacts
+          gh release create ${{ needs.version.outputs.semVer }} \
+            --title "Release ${{ needs.version.outputs.semVer }}" \
+            --notes "Release ${{ needs.version.outputs.semVer }}" \
+            --draft=false \
+            --prerelease=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Install GitReleaseManager
-      - name: Install GitReleaseManager
-        uses: gittools/actions/gitreleasemanager/setup@v3.1.11
-        with:
-          versionSpec: '0.18.x'
-
-      # Create a release
-      - name: Create release with GitReleaseManager
-        uses: gittools/actions/gitreleasemanager/create@v3.1.11
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          owner: 'arkag'
-          repository: 'dirclean'
-          name: Release ${{ needs.version.outputs.semVer }}
-          assets: |
-            ${{ github.workspace }}/artifacts/dirclean-darwin-arm64
-            ${{ github.workspace }}/artifacts/dirclean-linux-amd64
+      # Upload assets to the release using the GitHub CLI (gh)
+      - name: Upload Release Assets
+        run: |
+          for asset in artifacts/*; do
+            gh release upload ${{ needs.version.outputs.semVer }} "$asset"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
