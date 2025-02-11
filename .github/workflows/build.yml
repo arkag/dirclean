@@ -90,7 +90,7 @@ jobs:
     steps:
       # Download all artifacts from the build job
       - name: Download artifacts
-        uses: actions/download-artifact
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
