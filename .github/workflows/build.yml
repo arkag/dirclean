@@ -109,4 +109,5 @@ jobs:
           repository: 'dirclean'
           milestone: ${{ needs.version.outputs.semVer }}
           name: Release ${{ needs.version.outputs.semVer }}
-          assets: artifacts/*
+          assets: |
+            artifacts/${{ needs.build.outputs.matrix.platform.binary_name }}
