@@ -40,6 +40,9 @@ jobs:
           git tag ${{ steps.gitversion.outputs.semVer }}
           git push origin ${{ steps.gitversion.outputs.semVer }}
 
+    outputs:
+      semVer: ${{ steps.gitversion.outputs.semVer }}  # Output the semVer for use in the release job
+
   build:
     runs-on: ubuntu-latest
     needs: version  # Ensure the version job runs first
@@ -99,7 +102,7 @@ jobs:
       # Create a GitHub release using the GitHub CLI (gh)
       - name: Create GitHub Release
         run: |
-          gh release create ${{ needs.version.outputs.semVer }} . \
+          gh release create ${{ needs.version.outputs.semVer }} \
             --title "Release ${{ needs.version.outputs.semVer }}" \
             --notes "Release ${{ needs.version.outputs.semVer }}" \
             --draft=false \
