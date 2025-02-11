@@ -94,7 +94,6 @@ jobs:
         with:
           path: artifacts
 
-
       # Install GitReleaseManager
       - name: Install GitReleaseManager
         uses: gittools/actions/gitreleasemanager/setup@v3.1.11
@@ -112,3 +111,4 @@ jobs:
           name: Release ${{ needs.version.outputs.semVer }}
           assets: |
             artifacts/dirclean-darwin-arm64
+            artifacts/dirclean-linux-amd64
