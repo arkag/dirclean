@@ -99,7 +99,7 @@ jobs:
       # Create a GitHub release using the GitHub CLI (gh)
       - name: Create GitHub Release
         run: |
-          gh release create ${{ needs.version.outputs.semVer }} \
+          gh release create ${{ needs.version.outputs.semVer }} . \
             --title "Release ${{ needs.version.outputs.semVer }}" \
             --notes "Release ${{ needs.version.outputs.semVer }}" \
             --draft=false \
