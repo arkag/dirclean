@@ -15,20 +15,20 @@ jobs:
     steps:
       # Check out the repository
       - name: Checkout code
-        uses: actions/checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for GitVersion to work correctly
 
       # Set up GitVersion
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup
+        uses: gittools/actions/gitversion/setup@v3.1.11
         with:
-          versionSpec: '5.x'  # Use GitVersion 6.x (latest as of February 2025)
+          versionSpec: '5.x'
 
       # Calculate the next version
       - name: Determine version
         id: gitversion
-        uses: gittools/actions/gitversion/execute
+        uses: gittools/actions/gitversion/execute@v3.1.11
         with:
           useConfigFile: false  # Use a GitVersion configuration file (optional)
 
@@ -60,11 +60,11 @@ jobs:
     steps:
       # Check out the repository
       - name: Checkout code
-        uses: actions/checkout
+        uses: actions/checkout@v4
 
       # Set up Go
       - name: Set up Go
-        uses: actions/setup-go
+        uses: actions/setup-go@v5
         with:
           go-version: '>=1.21'
 
@@ -75,7 +75,7 @@ jobs:
 
       # Upload the compiled binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform.binary_name }}
           path: ${{ matrix.platform.binary_name }}
@@ -96,13 +96,13 @@ jobs:
 
       # Install GitReleaseManager
       - name: Install GitReleaseManager
-        uses: gittools/actions/gitreleasemanager/setup
+        uses: gittools/actions/gitreleasemanager/setup@v3.1.11
         with:
           versionSpec: '0.18.x'
 
       # Create a release
       - name: Create release with GitReleaseManager
-        uses: gittools/actions/gitreleasemanager/create
+        uses: gittools/actions/gitreleasemanager/create@v3.1.11
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           owner: 'arkag'
