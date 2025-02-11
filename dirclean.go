@@ -2,16 +2,20 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/google/uuid"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -42,7 +46,42 @@ var (
 	}
 )
 
+const (
+	repoOwner = "arkag"
+	repoName  = "dirclean"
+)
+
+var (
+	appVersion = "unknown" // Default version, will be set at build time using -ldflags
+	appOsArch  = "unknown" // Default App OS Arch combination, will be set at build time user -ldflags
+)
+
 func main() {
+	// Parse command-line flags
+	versionFlag := flag.Bool("version", false, "Print the version of the application")
+	updateFlag := flag.Bool("update", false, "Update the application to the specified version")
+	tagFlag := flag.String("tag", "latest", "Specify the version tag to update to (default: latest)")
+	flag.Parse()
+
+	// Handle --version flag
+	if *versionFlag {
+		fmt.Printf("dirclean version: %s\n", appVersion)
+		fmt.Printf("dirclean osarch: %s\n", appOsArch)
+		return
+	}
+
+	// Handle --update flag
+	if *updateFlag {
+		if err := updateBinary(*tagFlag); err != nil {
+			logMessage("ERROR", fmt.Sprintf("Error updating binary: %v", err))
+			return
+		}
+		logMessage("INFO", "Update successful. Restarting...")
+		restartBinary()
+		return
+	}
+
+	// Continue with normal execution
 	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
 		help()
 		return
@@ -65,6 +104,8 @@ func main() {
 	logMessage("DEBUG", fmt.Sprintf("CONFIG_FILE: %s", configFile))
 	logMessage("DEBUG", fmt.Sprintf("LOG_FILE: %s", logFile))
 	logMessage("DEBUG", fmt.Sprintf("LOG_LEVEL: %s", logLevel))
+	logMessage("DEBUG", fmt.Sprintf("APP_VERSION: %s", appVersion))
+	logMessage("DEBUG", fmt.Sprintf("APP_OSARCH: %s", appOsArch))
 
 	f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -122,7 +163,7 @@ Config file format:
        - /foo_dir/foo_sub_dir/foo_wildcard_dir*
 
 Usage:
-  dirclean [--help|-h]
+  dirclean [--help|-h] [--version] [--update] [--tag=<version>]
 
 Environment Variables:
    DRY_RUN        When true, only show what would be deleted (default: true)
@@ -322,4 +363,55 @@ func logMessage(level, message string) {
 	if logLevels[level] >= logLevels[logLevel] {
 		log.Printf("[%s] %s", level, message)
 	}
+}
+
+func updateBinary(tag string) error {
+	binaryName := fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
+	url := fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s", repoOwner, repoName, tag, binaryName)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download binary: %s", resp.Status)
+	}
+
+	// Create a temporary file to store the new binary
+	tmpFile, err := os.CreateTemp("", "dirclean-")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		return err
+	}
+
+	// Replace the current binary with the new one
+	if err := os.Rename(tmpFile.Name(), os.Args[0]); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func restartBinary() {
+	executable, err := os.Executable()
+	if err != nil {
+		logMessage("ERROR", fmt.Sprintf("Error getting executable path: %v", err))
+		return
+	}
+
+	cmd := exec.Command(executable, os.Args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		logMessage("ERROR", fmt.Sprintf("Error restarting binary: %v", err))
+		return
+	}
+
+	os.Exit(0)
 }
