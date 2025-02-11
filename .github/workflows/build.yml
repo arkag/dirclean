@@ -93,6 +93,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: 'dirclean-*'  # Ensure only the relevant artifacts are downloaded
+          merge-multiple: true   # Merge artifacts into a single directory
+
+      # List downloaded artifacts for debugging
+      - name: List artifacts
+        run: |
+          ls -R artifacts
 
       # Install GitReleaseManager
       - name: Install GitReleaseManager
