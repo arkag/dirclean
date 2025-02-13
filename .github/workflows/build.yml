@@ -55,21 +55,11 @@ jobs:
 
     strategy:
       matrix:
-        platform:
-          - os: darwin
-            arch: arm64
-          - os: darwin
-            arch: amd64
-          - os: linux
-            arch: amd64
-          - os: linux
-            arch: arm64
-          - os: windows
-            arch: amd64
-            ext: .exe  # Windows binaries typically have a .exe extension
-          - os: windows
-            arch: arm64
-            ext: .exe
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
+        exclude:
+          - arch: arm64
+            os: windows
 
     steps:
       # Check out the repository
@@ -85,19 +75,19 @@ jobs:
       # Build the Go program for the target platform with the version embedded
       - name: Build
         run: |
-          GOOS=${{ matrix.platform.os }} GOARCH=${{ matrix.platform.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.platform.os }}/${{ matrix.platform.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.platform.ext || '' }} ./dirclean.go
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'Windows' && '.exe' || '' }} ./dirclean.go
 
       # Create a tarball for the binary
       - name: Create tarball
         run: |
-          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.platform.ext || '' }}
+          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.os == 'Windows' && '.exe' || '' }}
 
       # Upload the tarball as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BINARY_NAME }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
-          path: ${{ env.BINARY_NAME }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
+          name: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+          path: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
   release:
     runs-on: ubuntu-latest
