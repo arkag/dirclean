@@ -55,11 +55,10 @@ jobs:
 
     strategy:
       matrix:
-        os: [linux, darwin] #, windows]
+        os: [linux, darwin, windows]
         arch: [amd64, arm64]
         exclude:
-          - arch: arm64
-            os: windows
+          - os: windows
 
     steps:
       # Check out the repository
