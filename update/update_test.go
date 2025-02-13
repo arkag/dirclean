@@ -19,11 +19,11 @@ func TestUpdateBinary(t *testing.T) {
 	originalBinaryName := fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
 
 	// Override the binary name and URL for testing
-	binaryName = originalBinaryName
-	oldURL := fmt.Sprintf("https://github.com/arkag/dirclean/releases/download/%%s/%s", binaryName)
+	BinaryName = originalBinaryName
+	oldURL := fmt.Sprintf("https://github.com/arkag/dirclean/releases/download/%%s/%s", BinaryName)
 
 	// Replace the URL with test server URL
-	url = ts.URL + "/" + binaryName
+	UpdateURL = ts.URL + "/" + BinaryName
 
 	// Run test
 	err := UpdateBinary("test")
@@ -32,5 +32,5 @@ func TestUpdateBinary(t *testing.T) {
 	}
 
 	// Restore original URL format
-	url = oldURL
+	UpdateURL = oldURL
 }

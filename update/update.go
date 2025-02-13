@@ -14,13 +14,14 @@ import (
 var (
 	AppVersion = "unknown"
 	AppOsArch  = "unknown"
+	BinaryName = fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
+	UpdateURL  = fmt.Sprintf("https://github.com/arkag/dirclean/releases/download/%%s/%s", BinaryName)
 )
 
 func UpdateBinary(tag string) error {
-	binaryName := fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
-	url := fmt.Sprintf("https://github.com/arkag/dirclean/releases/download/%s/%s", tag, binaryName)
+	downloadURL := fmt.Sprintf(UpdateURL, tag)
 
-	resp, err := http.Get(url)
+	resp, err := http.Get(downloadURL)
 	if err != nil {
 		return err
 	}
