@@ -14,11 +14,10 @@ func TestUpdateBinary(t *testing.T) {
 	defer ts.Close()
 
 	// Store original values
-	originalBinaryName := BinaryName
 	originalURL := UpdateURL
 
-	// Override the URL with test server URL
-	UpdateURL = ts.URL + "/dirclean"
+	// Override the URL with test server URL (keeping the format specifier)
+	UpdateURL = ts.URL + "/%s"
 
 	// Run test
 	err := UpdateBinary("test")
@@ -27,6 +26,5 @@ func TestUpdateBinary(t *testing.T) {
 	}
 
 	// Restore original values
-	BinaryName = originalBinaryName
 	UpdateURL = originalURL
 }
