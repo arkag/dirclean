@@ -390,9 +390,25 @@ func updateBinary(tag string) error {
 		return err
 	}
 
+	// Get the current executable path
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("error getting executable path: %v", err)
+	}
+
+	// Close the temporary file before renaming
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("error closing temporary file: %v", err)
+	}
+
 	// Replace the current binary with the new one
-	if err := os.Rename(tmpFile.Name(), os.Args[0]); err != nil {
-		return err
+	if err := os.Rename(tmpFile.Name(), executable); err != nil {
+		return fmt.Errorf("error replacing binary: %v", err)
+	}
+
+	// Set the executable permissions on the new binary
+	if err := os.Chmod(executable, 0755); err != nil {
+		return fmt.Errorf("error setting executable permissions: %v", err)
 	}
 
 	return nil

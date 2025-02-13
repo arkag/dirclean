@@ -5,6 +5,9 @@ on:
     branches:
       - main  # Trigger on pushes to the main branch
 
+env:
+  BINARY_NAME: dirclean  # Change this to your desired binary name
+
 jobs:
   version:
     runs-on: ubuntu-latest
@@ -55,10 +58,18 @@ jobs:
         platform:
           - os: darwin
             arch: arm64
-            binary_name: dirclean-darwin-arm64
+          - os: darwin
+            arch: amd64
           - os: linux
             arch: amd64
-            binary_name: dirclean-linux-amd64
+          - os: linux
+            arch: arm64
+          - os: windows
+            arch: amd64
+            ext: .exe  # Windows binaries typically have a .exe extension
+          - os: windows
+            arch: arm64
+            ext: .exe
 
     steps:
       # Check out the repository
@@ -74,14 +85,19 @@ jobs:
       # Build the Go program for the target platform with the version embedded
       - name: Build
         run: |
-          GOOS=${{ matrix.platform.os }} GOARCH=${{ matrix.platform.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.platform.os }}/${{ matrix.platform.arch }}" -o ${{ matrix.platform.binary_name }} ./dirclean.go
+          GOOS=${{ matrix.platform.os }} GOARCH=${{ matrix.platform.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.platform.os }}/${{ matrix.platform.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.platform.ext || '' }} ./dirclean.go
 
-      # Upload the compiled binary as an artifact
+      # Create a tarball for the binary
+      - name: Create tarball
+        run: |
+          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.platform.ext || '' }}
+
+      # Upload the tarball as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform.binary_name }}
-          path: ${{ matrix.platform.binary_name }}
+          name: ${{ env.BINARY_NAME }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
+          path: ${{ env.BINARY_NAME }}-${{ matrix.platform.os }}-${{ matrix.platform.arch }}.tar.gz
 
   release:
     runs-on: ubuntu-latest
@@ -102,8 +118,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: 'dirclean-*'  # Ensure only the relevant artifacts are downloaded
+          pattern: '${{ env.BINARY_NAME }}-*.tar.gz'  # Ensure only the tarballs are downloaded
           merge-multiple: true   # Merge artifacts into a single directory
+
+      # Generate a checksum file for all tarballs
+      - name: Generate checksum file
+        run: |
+          cd artifacts
+          shasum -a 256 ${{ env.BINARY_NAME }}-*.tar.gz > checksums.txt
 
       # Create a GitHub release using the GitHub CLI (gh)
       - name: Create GitHub Release
@@ -116,7 +138,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload assets to the release using the GitHub CLI (gh)
+      # Upload tarballs and checksum file to the release using the GitHub CLI (gh)
       - name: Upload Release Assets
         run: |
           for asset in artifacts/*; do
