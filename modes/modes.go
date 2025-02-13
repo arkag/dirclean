@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arkag/dirclean/config"
 	"github.com/arkag/dirclean/logging"
 )
 
-func ProcessFiles(config Config, tempFile *os.File, mode string) {
+func ProcessFiles(config config.Config, tempFile *os.File, mode string) {
 	days := config.DeleteOlderThanDays
 	paths := config.Paths
 

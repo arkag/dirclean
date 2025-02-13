@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/arkag/dirclean/config"
 )
 
 func TestProcessFiles(t *testing.T) {
@@ -28,7 +30,7 @@ func TestProcessFiles(t *testing.T) {
 		t.Fatalf("Error setting file time: %v", err)
 	}
 
-	config := Config{
+	config := config.Config{
 		DeleteOlderThanDays: 5,
 		Paths:               []string{testDir},
 	}

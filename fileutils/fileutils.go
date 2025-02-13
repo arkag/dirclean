@@ -39,7 +39,7 @@ func PrintSummary(tempFile string, dfBefore, dfAfter map[string]uint64, runID st
 	fmt.Printf("Total size of files:\t%.2f GB\n", fileSize)
 
 	fmt.Println(GetDFDiff(dfBefore, dfAfter))
-	fmt.Println("-------------------------------------------------------------------------------\n")
+	fmt.Println("-------------------------------------------------------------------------------")
 }
 
 func CountLines(filename string) int {
