@@ -5,22 +5,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/arkag/dirclean/logging"
 )
 
+// GetDF returns disk usage information for the given path
 func GetDF(path string) (map[string]uint64, error) {
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(path, &stat)
+	diskUsage := make(map[string]uint64)
+
+	// Get filesystem statistics
+	var available, total uint64
+	var err error
+
+	available, total, err = getDiskSpace(path)
 	if err != nil {
 		return nil, err
 	}
 
-	diskUsage := make(map[string]uint64)
-	diskUsage["Available"] = (uint64(stat.Bavail) * uint64(stat.Bsize)) / (1024 * 1024 * 1024)
-	diskUsage["Total"] = (uint64(stat.Blocks) * uint64(stat.Bsize)) / (1024 * 1024 * 1024)
+	diskUsage["Available"] = available
+	diskUsage["Total"] = total
 
 	return diskUsage, nil
 }
