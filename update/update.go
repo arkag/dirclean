@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
+	"strings"
 
 	"github.com/arkag/dirclean/logging"
 )
@@ -20,6 +22,10 @@ var (
 
 func UpdateBinary(tag string) error {
 	downloadURL := fmt.Sprintf(UpdateURL, tag)
+	if !strings.Contains(UpdateURL, "%s") {
+		// If URL doesn't contain format specifier, just append the tag
+		downloadURL = path.Join(UpdateURL, tag)
+	}
 
 	resp, err := http.Get(downloadURL)
 	if err != nil {

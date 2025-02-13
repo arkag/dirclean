@@ -1,10 +1,8 @@
 package update
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"testing"
 )
 
@@ -15,15 +13,12 @@ func TestUpdateBinary(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Store original URL format
-	originalBinaryName := fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
+	// Store original values
+	originalBinaryName := BinaryName
+	originalURL := UpdateURL
 
-	// Override the binary name and URL for testing
-	BinaryName = originalBinaryName
-	oldURL := fmt.Sprintf("https://github.com/arkag/dirclean/releases/download/%%s/%s", BinaryName)
-
-	// Replace the URL with test server URL
-	UpdateURL = ts.URL + "/" + BinaryName
+	// Override the URL with test server URL
+	UpdateURL = ts.URL + "/dirclean"
 
 	// Run test
 	err := UpdateBinary("test")
@@ -31,6 +26,7 @@ func TestUpdateBinary(t *testing.T) {
 		t.Errorf("Error updating binary: %v", err)
 	}
 
-	// Restore original URL format
-	UpdateURL = oldURL
+	// Restore original values
+	BinaryName = originalBinaryName
+	UpdateURL = originalURL
 }
