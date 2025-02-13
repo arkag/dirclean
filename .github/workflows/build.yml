@@ -95,7 +95,7 @@ jobs:
       # Build the Go program for the target platform with the version embedded
       - name: Build
         run: |
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./dirclean.go
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./main.go
 
       # Create a tarball for the binary
       - name: Create tarball
