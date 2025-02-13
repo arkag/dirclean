@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build, Test, and Release
 
 on:
   push:
@@ -46,6 +46,26 @@ jobs:
     outputs:
       semVer: ${{ steps.gitversion.outputs.semVer }}  # Output the semVer for use in the release job
 
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      # Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.21'
+
+      # Run tests
+      - name: Run tests
+        run: go test ./...
+
   build:
     runs-on: ubuntu-latest
     needs: version  # Ensure the version job runs first
@@ -59,6 +79,7 @@ jobs:
         arch: [amd64, arm64]
         exclude:
           - os: windows
+            arch: arm64
 
     steps:
       # Check out the repository
@@ -74,12 +95,12 @@ jobs:
       # Build the Go program for the target platform with the version embedded
       - name: Build
         run: |
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'Windows' && '.exe' || '' }} ./dirclean.go
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./dirclean.go
 
       # Create a tarball for the binary
       - name: Create tarball
         run: |
-          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.os == 'Windows' && '.exe' || '' }}
+          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
       # Upload the tarball as an artifact
       - name: Upload artifact
@@ -88,9 +109,57 @@ jobs:
           name: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
           path: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
+  package:
+    runs-on: ubuntu-latest
+    needs: version  # Ensure the version job runs first
+
+    steps:
+      # Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Go
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.21'
+
+      # Build the Go program for Linux
+      - name: Build for Linux
+        run: |
+          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=linux/amd64" -o ${{ env.BINARY_NAME }} ./main.go
+
+      # Package for RedHat
+      - name: Package for RedHat
+        run: |
+          sudo yum install -y rpm-build
+          ./package-redhat.sh
+
+      # Package for Debian
+      - name: Package for Debian
+        run: |
+          sudo apt-get install -y debhelper
+          ./package-debian.sh
+
+      # Package for Arch
+      - name: Package for Arch
+        run: |
+          sudo pacman -S --noconfirm base-devel
+          ./package-arch.sh
+
+      # Upload packages as artifacts
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            *.rpm
+            *.deb
+            *.pkg.tar.zst
+
   release:
     runs-on: ubuntu-latest
-    needs: [version, build]  # Ensure version and build jobs run first
+    needs: [version, build, package]  # Ensure version, build, and package jobs run first
 
     permissions:
       contents: write  # Required to create a release and upload assets
@@ -103,17 +172,25 @@ jobs:
           fetch-depth: 0  # Fetch all history
 
       # Download all artifacts from the build job
-      - name: Download artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: build-artifacts
           pattern: '${{ env.BINARY_NAME }}-*.tar.gz'  # Ensure only the tarballs are downloaded
+          merge-multiple: true   # Merge artifacts into a single directory
+
+      # Download all artifacts from the package job
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: package-artifacts
+          pattern: 'linux-packages/*'  # Ensure only the Linux packages are downloaded
           merge-multiple: true   # Merge artifacts into a single directory
 
       # Generate a checksum file for all tarballs
       - name: Generate checksum file
         run: |
-          cd artifacts
+          cd build-artifacts
           shasum -a 256 ${{ env.BINARY_NAME }}-*.tar.gz > checksums.txt
 
       # Create a GitHub release using the GitHub CLI (gh)
@@ -127,10 +204,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload tarballs and checksum file to the release using the GitHub CLI (gh)
+      # Upload tarballs, packages, and checksum file to the release using the GitHub CLI (gh)
       - name: Upload Release Assets
         run: |
-          for asset in artifacts/*; do
+          for asset in build-artifacts/*; do
+            gh release upload ${{ needs.version.outputs.semVer }} "$asset"
+          done
+          for asset in package-artifacts/*; do
             gh release upload ${{ needs.version.outputs.semVer }} "$asset"
           done
         env:
