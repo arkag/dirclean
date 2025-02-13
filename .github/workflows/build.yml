@@ -103,23 +103,24 @@ jobs:
             container: fedora:latest
             cmd: |
               dnf install -y rpm-build git
-              chmod +x ${{ env.BINARY_NAME }}
+              chmod +x ${BINARY_NAME}
               ./package-redhat.sh
           - type: debian
             container: ubuntu:latest
             cmd: |
               apt-get update
               apt-get install -y debhelper git
-              chmod +x ${{ env.BINARY_NAME }}
+              chmod +x ${BINARY_NAME}
               ./package-debian.sh
           - type: arch
             container: archlinux:latest
             cmd: |
               pacman -Syu --noconfirm base-devel git
-              chmod +x ${{ env.BINARY_NAME }}
+              chmod +x ${BINARY_NAME}
               ./package-arch.sh
     runs-on: ubuntu-latest
-    container: ${{ matrix.container }}
+    container: 
+      image: ${{ matrix.container }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
