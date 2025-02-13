@@ -3,39 +3,33 @@ name: Build, Test, and Release
 on:
   push:
     branches:
-      - main  # Trigger on pushes to the main branch
+      - main
 
 env:
-  BINARY_NAME: dirclean  # Change this to your desired binary name
+  BINARY_NAME: dirclean
 
 jobs:
   version:
     runs-on: ubuntu-latest
-
     permissions:
-      contents: write  # Required to create a release and upload assets
-
+      contents: write
     steps:
-      # Check out the repository
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for GitVersion to work correctly
+          fetch-depth: 0
 
-      # Set up GitVersion
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v3.1.11
         with:
           versionSpec: '5.x'
 
-      # Calculate the next version
       - name: Determine version
         id: gitversion
         uses: gittools/actions/gitversion/execute@v3.1.11
         with:
-          useConfigFile: false  # Use a GitVersion configuration file (optional)
+          useConfigFile: false
 
-      # Create a new Git tag
       - name: Create Git tag
         run: |
           git config --global user.name "GitHub Actions"
@@ -44,7 +38,7 @@ jobs:
           git push origin ${{ steps.gitversion.outputs.semVer }}
 
     outputs:
-      semVer: ${{ steps.gitversion.outputs.semVer }}  # Output the semVer for use in the release job
+      semVer: ${{ steps.gitversion.outputs.semVer }}
 
   test:
     runs-on: ${{ matrix.os }}
@@ -52,27 +46,22 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      # Check out the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Go
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '>=1.21'
 
-      # Run tests
       - name: Run tests
         run: go test ./...
 
   build:
     runs-on: ubuntu-latest
-    needs: version  # Ensure the version job runs first
-
+    needs: [version, test]
     permissions:
-      contents: write  # Required to create a release and upload assets
-
+      contents: write
     strategy:
       matrix:
         os: [linux, darwin, windows]
@@ -80,120 +69,131 @@ jobs:
         exclude:
           - os: windows
             arch: arm64
-
     steps:
-      # Check out the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set up Go
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '>=1.21'
 
-      # Build the Go program for the target platform with the version embedded
       - name: Build
         run: |
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./main.go
 
-      # Create a tarball for the binary
       - name: Create tarball
         run: |
           tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }}
 
-      # Upload the tarball as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
-          path: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
+          name: ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }}
+            ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
   package:
+    needs: [version, build]
+    strategy:
+      matrix:
+        include:
+          - type: redhat
+            container: fedora:latest
+            cmd: |
+              dnf install -y rpm-build git
+              chmod +x ${{ env.BINARY_NAME }}
+              ./package-redhat.sh
+          - type: debian
+            container: ubuntu:latest
+            cmd: |
+              apt-get update
+              apt-get install -y debhelper git
+              chmod +x ${{ env.BINARY_NAME }}
+              ./package-debian.sh
+          - type: arch
+            container: archlinux:latest
+            cmd: |
+              pacman -Syu --noconfirm base-devel git
+              chmod +x ${{ env.BINARY_NAME }}
+              ./package-arch.sh
     runs-on: ubuntu-latest
-    needs: version  # Ensure the version job runs first
-
+    container: ${{ matrix.container }}
     steps:
-      # Check out the repository
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # Set up Go
-      - name: Set up Go
-        uses: actions/setup-go@v5
         with:
-          go-version: '>=1.21'
+          fetch-depth: 0
 
-      # Build the Go program for Linux
-      - name: Build for Linux
-        run: |
-          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=linux/amd64" -o ${{ env.BINARY_NAME }} ./main.go
+      - name: Download Linux AMD64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-linux-amd64
+          path: .
 
-      # Package for RedHat
-      - name: Package for RedHat
-        run: |
-          sudo yum install -y rpm-build
-          ./package-redhat.sh
+      - name: Package for ${{ matrix.type }}
+        run: ${{ matrix.cmd }}
 
-      # Package for Debian
-      - name: Package for Debian
-        run: |
-          sudo apt-get install -y debhelper
-          ./package-debian.sh
-
-      # Package for Arch
-      - name: Package for Arch
-        run: |
-          sudo pacman -S --noconfirm base-devel
-          ./package-arch.sh
-
-      # Upload packages as artifacts
-      - name: Upload packages
+      - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-packages
+          name: ${{ env.BINARY_NAME }}-${{ matrix.type }}
           path: |
             *.rpm
             *.deb
             *.pkg.tar.zst
 
+  collect-packages:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+          pattern: '${{ env.BINARY_NAME }}-*'
+          merge-multiple: true
+
+      - name: Upload combined packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: packages/*
+
   release:
     runs-on: ubuntu-latest
-    needs: [version, build, package]  # Ensure version, build, and package jobs run first
-
+    needs: [version, build, collect-packages]  # Updated dependency
     permissions:
-      contents: write  # Required to create a release and upload assets
-
+      contents: write
     steps:
-      # Check out the repository
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history
+          fetch-depth: 0
 
-      # Download all artifacts from the build job
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: build-artifacts
-          pattern: '${{ env.BINARY_NAME }}-*.tar.gz'  # Ensure only the tarballs are downloaded
-          merge-multiple: true   # Merge artifacts into a single directory
+          pattern: '${{ env.BINARY_NAME }}-*'
+          exclude: |
+            **/*-redhat
+            **/*-debian
+            **/*-arch
+          merge-multiple: true
 
-      # Download all artifacts from the package job
       - name: Download package artifacts
         uses: actions/download-artifact@v4
         with:
           path: package-artifacts
-          pattern: 'linux-packages/*'  # Ensure only the Linux packages are downloaded
-          merge-multiple: true   # Merge artifacts into a single directory
+          name: linux-packages
 
-      # Generate a checksum file for all tarballs
       - name: Generate checksum file
         run: |
           cd build-artifacts
-          shasum -a 256 ${{ env.BINARY_NAME }}-*.tar.gz > checksums.txt
+          find . -type f -name "${{ env.BINARY_NAME }}-*.tar.gz" -exec sha256sum {} \; > checksums.txt
 
-      # Create a GitHub release using the GitHub CLI (gh)
       - name: Create GitHub Release
         run: |
           gh release create ${{ needs.version.outputs.semVer }} \
@@ -204,10 +204,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload tarballs, packages, and checksum file to the release using the GitHub CLI (gh)
       - name: Upload Release Assets
         run: |
-          for asset in build-artifacts/*; do
+          for asset in build-artifacts/${{ env.BINARY_NAME }}-*.tar.gz build-artifacts/checksums.txt; do
             gh release upload ${{ needs.version.outputs.semVer }} "$asset"
           done
           for asset in package-artifacts/*; do
