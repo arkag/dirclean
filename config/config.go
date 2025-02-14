@@ -53,19 +53,21 @@ func (f *FileSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // ToBytes converts FileSize to bytes
-func (f *FileSize) ToBytes() int64 {
-	multiplier := map[string]int64{
-		"B":  1,
-		"KB": 1024,
-		"MB": 1024 * 1024,
-		"GB": 1024 * 1024 * 1024,
-		"TB": 1024 * 1024 * 1024 * 1024,
+func (fs *FileSize) ToBytes() int64 {
+	multiplier := int64(1)
+	switch strings.ToUpper(fs.Unit) {
+	case "B":
+		multiplier = 1
+	case "KB":
+		multiplier = 1024
+	case "MB":
+		multiplier = 1024 * 1024
+	case "GB":
+		multiplier = 1024 * 1024 * 1024
+	case "TB":
+		multiplier = 1024 * 1024 * 1024 * 1024
 	}
-
-	if m, ok := multiplier[f.Unit]; ok {
-		return int64(f.Value * float64(m))
-	}
-	return 0
+	return int64(fs.Value * float64(multiplier))
 }
 
 // GetExampleConfigPath returns the OS-specific path for the example config
