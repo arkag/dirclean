@@ -129,7 +129,7 @@ jobs:
               %{_datadir}/dirclean/example.config.yaml
               EOF
               cp dirclean ~/rpmbuild/SOURCES/
-              cp -r config ~/rpmbuild/SOURCES/
+              cp example.config.yaml ~/rpmbuild/SOURCES/
               rpmbuild -ba ~/rpmbuild/SPECS/dirclean.spec
               cp ~/rpmbuild/RPMS/*/*.rpm .
           - type: debian
