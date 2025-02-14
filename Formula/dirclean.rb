@@ -13,7 +13,15 @@ class Dirclean < Formula
 
   version latest_version
 
-  # Define all possible binary combinations
+  # Define all possible binary combinations and config paths
+  def self.config_path
+    if OS.mac?
+      "/usr/local/share/dirclean"
+    else
+      "/usr/share/dirclean"
+    end
+  end
+
   def self.binary_info
     {
       darwin_arm64: "dirclean-darwin-arm64.tar.gz",
@@ -62,6 +70,42 @@ class Dirclean < Formula
 
   def install
     bin.install "dirclean"
+    
+    # Create and install example config
+    config_dir = etc/"dirclean"
+    config_dir.mkpath
+    
+    # Create example config content
+    example_config = <<~EOS
+      defaults:
+        delete_older_than_days: 30
+        mode: dry-run
+        log_level: INFO
+        log_file: dirclean.log
+      
+      rules:
+        - paths:
+            - ~/Downloads
+            - ~/Documents/temp
+          delete_older_than_days: 7
+          min_file_size: 1MB
+          mode: dry-run
+      
+        - paths:
+            - /tmp/*
+            - /var/tmp/*
+          delete_older_than_days: 1
+          max_file_size: 100MB
+          mode: dry-run
+    EOS
+    
+    # Write example config
+    (config_dir/"example.config.yaml").write(example_config)
+    
+    # Create share directory and symlink
+    share_dir = "#{HOMEBREW_PREFIX}/share/dirclean"
+    system "mkdir", "-p", share_dir unless Dir.exist?(share_dir)
+    system "ln", "-sf", "#{config_dir}/example.config.yaml", "#{share_dir}/example.config.yaml"
   end
 
   test do

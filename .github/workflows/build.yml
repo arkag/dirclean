@@ -196,20 +196,9 @@ jobs:
 
       - name: Set OS-specific paths
         run: |
-          case "${{ matrix.os }}" in
-            linux)
-              echo "CONFIG_DIR=/usr/share/dirclean" >> $GITHUB_ENV
-              echo "DOC_DIR=/usr/share/doc/dirclean" >> $GITHUB_ENV
-              ;;
-            darwin)
-              echo "CONFIG_DIR=/usr/local/share/dirclean" >> $GITHUB_ENV
-              echo "DOC_DIR=/usr/local/share/doc/dirclean" >> $GITHUB_ENV
-              ;;
-            windows)
-              echo "CONFIG_DIR=C:/ProgramData/dirclean" >> $GITHUB_ENV
-              echo "DOC_DIR=C:/ProgramData/dirclean/doc" >> $GITHUB_ENV
-              ;;
-          esac
+          # Default to Linux paths since we're only packaging for Linux
+          echo "CONFIG_DIR=/usr/share/dirclean" >> $GITHUB_ENV
+          echo "DOC_DIR=/usr/share/doc/dirclean" >> $GITHUB_ENV
 
       - name: Package for ${{ matrix.type }}
         run: ${{ matrix.cmd }}
