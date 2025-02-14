@@ -95,7 +95,7 @@ jobs:
             ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
   package:
-    needs: [version, build, test]  # Added test dependency
+    needs: [version, build, test]
     strategy:
       matrix:
         include:
@@ -103,37 +103,44 @@ jobs:
             container: fedora:latest
             cmd: |
               dnf install -y rpm-build git
-              chmod +x ${BINARY_NAME}
               ./package-redhat.sh
           - type: debian
             container: ubuntu:latest
             cmd: |
               apt-get update
               apt-get install -y debhelper git
-              chmod +x ${BINARY_NAME}
               ./package-debian.sh
           - type: arch
             container: archlinux:latest
             cmd: |
               pacman -Syu --noconfirm base-devel git
-              chmod +x ${BINARY_NAME}
               ./package-arch.sh
     runs-on: ubuntu-latest
     container: 
       image: ${{ matrix.container }}
       env:
         BINARY_NAME: ${{ env.BINARY_NAME }}
+      options: --user root
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Set file permissions
+        run: |
+          chmod -R 755 .
+          chown -R root:root .
+          ls -la
+
       - name: Download Linux AMD64 binary
         uses: actions/download-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-linux-amd64
           path: .
+
+      - name: Set binary permissions
+        run: chmod +x ${BINARY_NAME}
 
       - name: Package for ${{ matrix.type }}
         run: ${{ matrix.cmd }}
