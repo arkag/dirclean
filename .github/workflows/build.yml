@@ -230,7 +230,7 @@ jobs:
       - name: Generate checksum file
         run: |
           cd build-artifacts
-          find . -type f -name "${{ env.BINARY_NAME }}-*.tar.gz" -exec sha256sum {} \; > checksums.txt
+          find . -type f -name "${{ env.BINARY_NAME }}-*" -exec sha256sum {} \; > checksums.txt
 
       - name: Create GitHub Release
         run: |
@@ -244,7 +244,7 @@ jobs:
 
       - name: Upload Release Assets
         run: |
-          for asset in build-artifacts/${{ env.BINARY_NAME }}-*.tar.gz build-artifacts/checksums.txt; do
+          for asset in build-artifacts/*; do
             gh release upload ${{ needs.version.outputs.semVer }} "$asset"
           done
         env:
