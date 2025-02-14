@@ -81,6 +81,20 @@ curl -LO https://github.com/arkag/dirclean/releases/latest/download/dirclean.pkg
 sudo pacman -U dirclean.pkg.tar.zst
 ```
 
+#### Homebrew (macOS and Linux)
+```bash
+# Add the tap
+brew tap arkag/dirclean
+
+# Install dirclean
+brew install dirclean
+```
+
+To upgrade to the latest version:
+```bash
+brew upgrade dirclean
+```
+
 ### From Source
 ```bash
 go install github.com/arkag/dirclean@latest
