@@ -90,15 +90,35 @@ go install github.com/arkag/dirclean@latest
 
 ## Configuration
 
-The program uses a YAML configuration file (`config.yaml`) to define the directories and retention policies. Here's an example configuration:
+The program uses a YAML configuration file to define the directories and retention policies. An example configuration file is installed at:
 
-```yaml
-- delete_older_than_days: 30
-  paths:
-    - /foo_dir/foo_sub_dir
-    - /foo_dir/foo_sub_dir/foo_wildcard_dir*
-  mode: dry-run
+- Linux: `/usr/share/dirclean/example.config.yaml`
+- macOS: `/usr/local/share/dirclean/example.config.yaml`
+- Windows: `C:\ProgramData\dirclean\example.config.yaml`
+
+To get started, copy the example configuration to your preferred location:
+
+```bash
+# Linux/macOS
+cp /usr/share/dirclean/example.config.yaml ~/.config/dirclean/config.yaml
+
+# Windows (PowerShell)
+Copy-Item "C:\ProgramData\dirclean\example.config.yaml" "$env:USERPROFILE\.config\dirclean\config.yaml"
 ```
+
+Then modify the configuration file according to your needs. By default, all operations run in dry-run mode for safety.
+
+To use a custom configuration file:
+```bash
+dirclean --config /path/to/your/config.yaml
+```
+
+### Example Configuration
+The example configuration includes:
+- Cleaning files older than 7 days in `~/Downloads` and `~/Documents/temp`
+- Cleaning files older than 1 day in `/tmp` and `/var/tmp`
+- All operations in dry-run mode by default
+- Size-based filtering examples
 
 ### Configuration Options
 
@@ -121,21 +141,21 @@ dirclean [flags]
 
 ### Flags
 - `--config`: Path to config file (default: `config.yaml`)
-- `--dry-run`: Run in dry-run mode (default: true)
 - `--update`: Update to the latest version
 - `--version`: Show version information
-
-### Environment Variables
-
-- `CONFIG_FILE`: Path to the YAML configuration file (default: `config.yaml`)
-- `LOG_FILE`: Path to the log file (default: `dirclean.log`)
-- `LOG_LEVEL`: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`) (default: `INFO`)
-- `DRY_RUN`: Enable dry-run mode (default: `true`)
+- `--log`: Path to log file (default: `dirclean.log`)
+- `--log-level`: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`) (default: `INFO`)
+- `--min-size`: Minimum file size (e.g., `100MB`)
+- `--max-size`: Maximum file size (e.g., `1GB`)
+- `--mode`: Operation mode (`analyze`, `dry-run`, `interactive`, `scheduled`) (default: `dry-run`)
+- `--tag`: Version tag for update (default: `latest`)
 
 Example:
 ```bash
-CONFIG_FILE=/etc/dirclean/config.yaml LOG_LEVEL=DEBUG dirclean
+dirclean --config /etc/dirclean/config.yaml --log-level DEBUG --mode interactive
 ```
+
+Note: By default, all operations run in `dry-run` mode for safety. Use the `--mode` flag to change this behavior.
 
 ---
 

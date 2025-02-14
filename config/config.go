@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/arkag/dirclean/logging"
@@ -66,11 +68,36 @@ func (f *FileSize) ToBytes() int64 {
 	return 0
 }
 
+// GetExampleConfigPath returns the OS-specific path for the example config
+func GetExampleConfigPath() string {
+	switch runtime.GOOS {
+	case "linux":
+		return "/usr/share/dirclean/example.config.yaml"
+	case "darwin":
+		return "/usr/local/share/dirclean/example.config.yaml"
+	case "windows":
+		return filepath.Join(os.Getenv("ProgramData"), "dirclean", "example.config.yaml")
+	default:
+		return "example.config.yaml"
+	}
+}
+
+// LoadConfig attempts to load the config file, falling back to the example config if specified file doesn't exist
 func LoadConfig(configFile string) GlobalConfig {
-	f, err := os.Open(configFile)
+	var err error
+	var f *os.File
+
+	// Try to open the specified config file
+	f, err = os.Open(configFile)
 	if err != nil {
-		logging.LogMessage("FATAL", fmt.Sprintf("Error opening YAML file: %v", err))
-		os.Exit(1)
+		// If the specified file doesn't exist, try the example config
+		examplePath := GetExampleConfigPath()
+		f, err = os.Open(examplePath)
+		if err != nil {
+			logging.LogMessage("FATAL", fmt.Sprintf("Error opening config file %s or example config %s: %v", configFile, examplePath, err))
+			os.Exit(1)
+		}
+		logging.LogMessage("INFO", fmt.Sprintf("Using example config from %s", examplePath))
 	}
 	defer f.Close()
 

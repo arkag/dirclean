@@ -1,0 +1,20 @@
+defaults:
+  delete_older_than_days: 30
+  mode: dry-run # All operations default to dry-run for safety
+  log_level: INFO
+  log_file: dirclean.log
+
+rules:
+  - paths:
+      - ~/Downloads
+      - ~/Documents/temp
+    delete_older_than_days: 7
+    min_file_size: 1MB
+    mode: dry-run # Explicitly set to dry-run
+
+  - paths:
+      - /tmp/*
+      - /var/tmp/*
+    delete_older_than_days: 1
+    max_file_size: 100MB
+    mode: dry-run # Explicitly set to dry-run
