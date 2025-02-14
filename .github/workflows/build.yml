@@ -102,16 +102,21 @@ jobs:
     steps:
       - name: Update mirrors to vault
         run: |
+          # Update base CentOS repositories
           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+          
+          # Install and update SCL repository
+          yum install -y centos-release-scl
+          sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-SCLo-*.repo
+          sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*.repo
+          
           yum clean all
           yum makecache
 
       - name: Install build dependencies
         run: |
-          yum install -y centos-release-scl
-          yum install -y devtoolset-7-gcc git
-          yum install -y wget tar gzip
+          yum install -y devtoolset-7-gcc git wget tar gzip
           
           # Install Go 1.21
           wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
@@ -268,7 +273,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [version, build, package]
+    needs: [version, build, build-legacy, package]
     permissions:
       contents: write
     steps:
