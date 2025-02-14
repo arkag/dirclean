@@ -11,13 +11,22 @@ import (
 	"github.com/arkag/dirclean/logging"
 )
 
-func ProcessFiles(config config.Config, tempFile *os.File, mode string) {
+func ProcessFiles(config config.Config, tempFile *os.File) {
 	days := config.DeleteOlderThanDays
 	paths := config.Paths
 
 	if days <= 0 {
 		logging.LogMessage("ERROR", fmt.Sprintf("Invalid days value: %d", days))
 		return
+	}
+
+	// Convert file size limits to bytes
+	var minBytes, maxBytes int64
+	if config.MinFileSize != nil {
+		minBytes = config.MinFileSize.ToBytes()
+	}
+	if config.MaxFileSize != nil {
+		maxBytes = config.MaxFileSize.ToBytes()
 	}
 
 	matchedDirs := ValidateDirs(paths)
@@ -29,15 +38,27 @@ func ProcessFiles(config config.Config, tempFile *os.File, mode string) {
 				return nil
 			}
 			if !info.IsDir() {
+				fileSize := info.Size()
+
+				// Check file size constraints
+				if (minBytes > 0 && fileSize < minBytes) ||
+					(maxBytes > 0 && fileSize > maxBytes) {
+					return nil
+				}
+
 				modTime := info.ModTime()
 				cutoff := time.Now().AddDate(0, 0, -days)
 				if modTime.Before(cutoff) {
-					switch mode {
+					switch config.Mode {
+					case "analyze":
+						logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %d bytes, modified: %s)",
+							path, fileSize, modTime))
 					case "dry-run":
 						logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
 						fmt.Fprintln(tempFile, path)
 					case "interactive":
-						fmt.Printf("Delete file %s? (y/n): ", path)
+						fmt.Printf("Delete file %s? (size: %s, modified: %s) (y/n): ",
+							path, formatSize(fileSize), modTime.Format("2006-01-02"))
 						var response string
 						fmt.Scanln(&response)
 						if response == "y" {
@@ -87,4 +108,17 @@ func ValidateDirs(dirs []string) []string {
 		}
 	}
 	return matchedDirs
+}
+
+func formatSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

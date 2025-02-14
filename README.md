@@ -35,6 +35,11 @@ The program uses a YAML configuration file (`config.yaml`) to define the directo
 
 - **`delete_older_than_days`**: Number of days after which files are considered old and eligible for deletion.
 - **`paths`**: List of directories to clean. Supports wildcards (`*`) for matching multiple directories.
+- **`mode`**: Operation mode (analyze, dry-run, interactive, scheduled)
+  - `analyze`: Only report files that would be deleted
+  - `dry-run`: List files that would be deleted without actually removing them
+  - `interactive`: Prompt for confirmation before deleting each file
+  - `scheduled`: Delete files automatically without confirmation
 
 ---
 
@@ -62,7 +67,6 @@ Run the program with the following command:
 
 You can customize the program's behavior using the following environment variables:
 
-- **`DRY_RUN`**: Set to `true` to enable dry run mode (default: `true`).
 - **`CONFIG_FILE`**: Path to the YAML configuration file (default: `config.yaml`).
 - **`LOG_FILE`**: Path to the log file (default: `dirclean.log`).
 - **`LOG_LEVEL`**: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`) (default: `INFO`).
