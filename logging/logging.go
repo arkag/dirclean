@@ -16,11 +16,11 @@ var (
 type LogLevel int
 
 const (
-	DEBUG LogLevel = iota
-	INFO
-	WARN
-	ERROR
-	FATAL
+	DEBUG LogLevel = iota // 0
+	INFO                  // 1
+	WARN                  // 2
+	ERROR                 // 3
+	FATAL                 // 4
 )
 
 // Convert string level to LogLevel type
@@ -58,6 +58,7 @@ func LogMessage(level, message string) {
 	messageLevel := parseLogLevel(level)
 	configuredLevel := parseLogLevel(logLevel)
 
+	// Only log if message severity is equal to or higher than configured severity
 	if messageLevel >= configuredLevel {
 		log.Printf("[%s] %s", level, message)
 	}
