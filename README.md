@@ -27,6 +27,28 @@ This project was developed with the assistance of Augment, an AI language model 
 
 ## Installation
 
+### Quick Install (Linux and macOS)
+
+Install the latest version with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/arkag/dirclean/main/install.sh | bash
+```
+
+Or if you prefer to inspect the script first:
+
+```bash
+curl -O https://raw.githubusercontent.com/arkag/dirclean/main/install.sh
+chmod +x install.sh
+./install.sh
+```
+
+The script will:
+- Detect your OS and architecture
+- Download the appropriate binary
+- Verify the checksum
+- Install to `/usr/local/bin` (if run as root) or `~/.local/bin` (if run as user)
+
 ### From Binary Release
 
 1. Download the latest release for your platform from the [Releases page](https://github.com/arkag/dirclean/releases)
