@@ -102,19 +102,86 @@ jobs:
           - type: redhat
             container: fedora:latest
             cmd: |
-              dnf install -y rpm-build git
-              ./package-redhat.sh
+              dnf install -y rpm-build
+              mkdir -p ~/rpmbuild/{SPECS,SOURCES,BUILD,RPMS,SRPMS}
+              cat << EOF > ~/rpmbuild/SPECS/dirclean.spec
+              Name:           dirclean
+              Version:        ${{ needs.version.outputs.semVer }}
+              Release:        1%{?dist}
+              Summary:        Clean up old files from directories
+              License:        MIT
+              URL:           https://github.com/arkag/dirclean
+              
+              %description
+              DirClean is a program designed to clean up old files from directories based on a YAML configuration file.
+              
+              %install
+              mkdir -p %{buildroot}%{_bindir}
+              install -m 755 %{_sourcedir}/dirclean %{buildroot}%{_bindir}/dirclean
+              
+              %files
+              %{_bindir}/dirclean
+              
+              %changelog
+              * $(date '+%a %b %d %Y') GitHub Actions <actions@github.com> - ${{ needs.version.outputs.semVer }}-1
+              - Automated build
+              EOF
+              cp dirclean ~/rpmbuild/SOURCES/
+              rpmbuild -ba ~/rpmbuild/SPECS/dirclean.spec
+              cp ~/rpmbuild/RPMS/*/*.rpm .
+
           - type: debian
             container: ubuntu:latest
             cmd: |
               apt-get update
-              apt-get install -y debhelper git
-              ./package-debian.sh
+              apt-get install -y debhelper
+              mkdir -p debian/usr/bin
+              cp dirclean debian/usr/bin/
+              cat << EOF > debian/control
+              Source: dirclean
+              Section: utils
+              Priority: optional
+              Maintainer: GitHub Actions <actions@github.com>
+              
+              Package: dirclean
+              Architecture: any
+              Description: Clean up old files from directories
+                DirClean is a program designed to clean up old files from directories
+                based on a YAML configuration file.
+              EOF
+              cat << EOF > debian/rules
+              #!/usr/bin/make -f
+              %:
+                dh \$@
+              override_dh_auto_build:
+              override_dh_auto_test:
+              EOF
+              chmod +x debian/rules
+              mkdir -p debian/DEBIAN
+              dpkg-deb --build debian .
+
           - type: arch
             container: archlinux:latest
             cmd: |
-              pacman -Syu --noconfirm base-devel git
-              ./package-arch.sh
+              pacman -Syu --noconfirm base-devel
+              useradd -m builder
+              echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+              cat << EOF > PKGBUILD
+              pkgname=dirclean
+              pkgver=${{ needs.version.outputs.semVer }}
+              pkgrel=1
+              pkgdesc="Clean up old files from directories"
+              arch=('x86_64' 'aarch64')
+              url="https://github.com/arkag/dirclean"
+              license=('MIT')
+              
+              package() {
+                install -Dm755 "\$srcdir/../dirclean" "\$pkgdir/usr/bin/dirclean"
+              }
+              EOF
+              chown -R builder:builder .
+              su - builder -c "cd ${GITHUB_WORKSPACE} && makepkg -f"
+
     runs-on: ubuntu-latest
     container: 
       image: ${{ matrix.container }}
@@ -126,12 +193,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set file permissions
-        run: |
-          chmod -R 755 .
-          chown -R root:root .
-          ls -la
 
       - name: Download Linux AMD64 binary
         uses: actions/download-artifact@v4
