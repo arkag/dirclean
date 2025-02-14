@@ -21,13 +21,22 @@ import (
 var (
 	AppVersion    = "unknown"
 	AppOsArch     = "unknown"
-	BinaryName    = fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
+	IsLegacy      = "false"
+	BinaryName    = getBinaryName()
 	ArchiveName   = fmt.Sprintf("%s.tar.gz", BinaryName)
 	UpdateURL     = fmt.Sprintf("https://github.com/arkag/dirclean/releases/download/%%s/%s", ArchiveName)
 	ChecksumURL   = "https://github.com/arkag/dirclean/releases/download/%s/checksums.txt"
 	BinaryExt     = ""
 	getExecutable = os.Executable
 )
+
+func getBinaryName() string {
+	base := fmt.Sprintf("dirclean-%s-%s", runtime.GOOS, runtime.GOARCH)
+	if IsLegacy == "true" {
+		return base + "-legacy"
+	}
+	return base
+}
 
 func init() {
 	if runtime.GOOS == "windows" {
