@@ -264,7 +264,7 @@ jobs:
             *.deb \
             *.pkg.tar.zst \
             checksums.txt; do
-            gh release upload ${{ needs.version.outputs.semVer }} "$asset"
+            gh release upload ${{ needs.version.outputs.semVer }} "$asset" --clobber
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
