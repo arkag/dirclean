@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/arkag/dirclean/config"
+	"github.com/arkag/dirclean/fileutils"
 	"github.com/arkag/dirclean/logging"
 )
 
@@ -31,6 +32,11 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 
 	matchedDirs := ValidateDirs(paths)
 
+	if config.Mode == "analyze" {
+		fmt.Println("\nAnalyzing directories for old files...")
+		fmt.Println("=====================================")
+	}
+
 	for _, dir := range matchedDirs {
 		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -49,16 +55,20 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 				modTime := info.ModTime()
 				cutoff := time.Now().AddDate(0, 0, -days)
 				if modTime.Before(cutoff) {
+					if config.Mode == "analyze" {
+						logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %s, modified: %s)",
+							path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
+					}
 					switch config.Mode {
 					case "analyze":
-						logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %d bytes, modified: %s)",
-							path, fileSize, modTime))
+						logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %s, modified: %s)",
+							path, fileutils.FormatSize(fileSize), modTime))
 					case "dry-run":
 						logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
 						fmt.Fprintln(tempFile, path)
 					case "interactive":
-						fmt.Printf("Delete file %s? (size: %d bytes, modified: %s) (y/n): ",
-							path, fileSize, modTime)
+						fmt.Printf("Delete file %s? (size: %s, modified: %s) (y/n): ",
+							path, fileutils.FormatSize(fileSize), modTime)
 						var response string
 						fmt.Scanln(&response)
 						if response == "y" || response == "Y" {
@@ -87,6 +97,46 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 		})
 		if err != nil {
 			logging.LogMessage("ERROR", fmt.Sprintf("Error walking directory %s: %v", dir, err))
+		}
+	}
+
+	if config.Mode == "analyze" {
+		suggestions := fileutils.GetSuggestedDirs(paths, 100) // 100MB minimum size
+		if len(suggestions) > 0 {
+			fmt.Println("\nLarge directories that may need attention:")
+			fmt.Println("=========================================")
+			for i, dir := range suggestions {
+				fmt.Printf("\n%d. Directory: %s\n", i+1, dir.Path)
+				fmt.Printf("   Total size: %s\n", fileutils.FormatSize(dir.Size))
+				fmt.Printf("   Last accessed: %s\n", dir.LastUsed.Format("2006-01-02"))
+				fmt.Printf("   Files: %d\n", dir.FileCount)
+
+				// Calculate and show percentage of old files
+				oldFilesCount := 0
+				oldFilesSize := int64(0)
+				err := filepath.Walk(dir.Path, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return nil
+					}
+					if !info.IsDir() {
+						if info.ModTime().Before(time.Now().AddDate(0, 0, -days)) {
+							oldFilesCount++
+							oldFilesSize += info.Size()
+						}
+					}
+					return nil
+				})
+				if err == nil && dir.FileCount > 0 {
+					percentOld := float64(oldFilesCount) / float64(dir.FileCount) * 100
+					percentSize := float64(oldFilesSize) / float64(dir.Size) * 100
+					fmt.Printf("   Old files: %d (%.1f%% of files, %.1f%% of size)\n",
+						oldFilesCount, percentOld, percentSize)
+				}
+			}
+
+			fmt.Println("\nTo clean these directories:")
+			fmt.Println("1. Add them to your config file, or")
+			fmt.Printf("2. Run: dirclean --mode=interactive --path=<directory_path> --days=%d\n", days)
 		}
 	}
 }
