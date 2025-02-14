@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -195,22 +194,4 @@ func UpdateBinary(tag string) error {
 
 	logging.LogMessage("INFO", fmt.Sprintf("Successfully updated to version %s", tag))
 	return nil
-}
-
-func RestartBinary() {
-	executable, err := os.Executable()
-	if err != nil {
-		logging.LogMessage("ERROR", fmt.Sprintf("Error getting executable path: %v", err))
-		return
-	}
-
-	cmd := exec.Command(executable, os.Args[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		logging.LogMessage("ERROR", fmt.Sprintf("Error restarting binary: %v", err))
-		return
-	}
-
-	os.Exit(0)
 }

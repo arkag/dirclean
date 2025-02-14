@@ -55,8 +55,7 @@ func main() {
 			logging.LogMessage("ERROR", fmt.Sprintf("Error updating binary: %v", err))
 			return
 		}
-		logging.LogMessage("INFO", "Update successful. Restarting...")
-		update.RestartBinary()
+		logging.LogMessage("INFO", "Update successful.")
 		return
 	}
 
