@@ -66,10 +66,32 @@ install_binary() {
     print_step "Verifying checksum..."
     curl -sL "${CHECKSUM_URL}" -o "${TEMP_DIR}/checksums.txt"
     pushd "${TEMP_DIR}" > /dev/null
-    if ! sha256sum -c --ignore-missing checksums.txt; then
-        print_error "Checksum verification failed"
+    
+    # Extract expected checksum for our file
+    local EXPECTED_CHECKSUM=$(grep "${ARCHIVE_NAME}" checksums.txt | awk '{print $1}')
+    if [ -z "${EXPECTED_CHECKSUM}" ]; then
+        print_error "Checksum not found for ${ARCHIVE_NAME}"
         exit 1
     fi
+    
+    # Calculate actual checksum
+    local ACTUAL_CHECKSUM
+    if command -v sha256sum >/dev/null 2>&1; then
+        ACTUAL_CHECKSUM=$(sha256sum "${ARCHIVE_NAME}" | awk '{print $1}')
+    elif command -v shasum >/dev/null 2>&1; then
+        ACTUAL_CHECKSUM=$(shasum -a 256 "${ARCHIVE_NAME}" | awk '{print $1}')
+    else
+        print_error "Neither sha256sum nor shasum found"
+        exit 1
+    fi
+    
+    if [ "${EXPECTED_CHECKSUM}" != "${ACTUAL_CHECKSUM}" ]; then
+        print_error "Checksum verification failed"
+        print_error "Expected: ${EXPECTED_CHECKSUM}"
+        print_error "Got: ${ACTUAL_CHECKSUM}"
+        exit 1
+    fi
+    
     popd > /dev/null
     
     print_step "Extracting archive..."
