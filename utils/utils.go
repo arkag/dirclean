@@ -38,12 +38,12 @@ func FileExists(path string) bool {
 		}
 
 		// Try to stat the target
-		targetInfo, err := os.Stat(target)
+		_, err = os.Stat(target)
 		if err != nil {
 			logging.LogMessage("DEBUG", fmt.Sprintf("Target stat error for %s: %v", target, err))
 			return false
 		}
-		logging.LogMessage("DEBUG", fmt.Sprintf("Target exists and is accessible"))
+		logging.LogMessage("DEBUG", "Target exists and is accessible")
 		return true
 	}
 
