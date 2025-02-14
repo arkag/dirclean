@@ -100,6 +100,13 @@ jobs:
     container: 
       image: centos:7
     steps:
+      - name: Update mirrors to vault
+        run: |
+          sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+          sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+          yum clean all
+          yum makecache
+
       - name: Install build dependencies
         run: |
           yum install -y centos-release-scl
