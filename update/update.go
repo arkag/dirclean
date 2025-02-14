@@ -146,16 +146,11 @@ func extractBinary(archiveData []byte, tmpDir string) (string, error) {
 func UpdateBinary(tag string) error {
 	if tag == "latest" {
 		logging.LogMessage("DEBUG", "Fetching latest release tag...")
-		// Add logic to fetch latest release tag from GitHub API
 		resp, err := http.Get("https://api.github.com/repos/arkag/dirclean/releases/latest")
 		if err != nil {
 			return fmt.Errorf("failed to fetch latest release: %v", err)
 		}
 		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("failed to fetch latest release: HTTP %d", resp.StatusCode)
-		}
 
 		var release struct {
 			TagName string `json:"tag_name"`
@@ -164,46 +159,36 @@ func UpdateBinary(tag string) error {
 			return fmt.Errorf("failed to parse release info: %v", err)
 		}
 		tag = release.TagName
-		logging.LogMessage("DEBUG", fmt.Sprintf("Latest release tag: %s", tag))
 	}
 
 	downloadURL := fmt.Sprintf(UpdateURL, tag)
-	logging.LogMessage("DEBUG", fmt.Sprintf("Download URL: %s", downloadURL))
+	logging.LogMessage("DEBUG", fmt.Sprintf("Downloading from: %s", downloadURL))
 
-	// Download archive
 	archiveData, err := downloadFile(downloadURL)
 	if err != nil {
-		return fmt.Errorf("download failed: %v", err)
+		return fmt.Errorf("failed to download: %v", err)
 	}
 
-	// Verify checksum
-	logging.LogMessage("DEBUG", "Verifying checksum...")
 	if err := verifyChecksum(archiveData, tag); err != nil {
 		return fmt.Errorf("checksum verification failed: %v", err)
 	}
 
-	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "dirclean-update-")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Extract binary
-	logging.LogMessage("DEBUG", "Extracting binary...")
 	binaryPath, err := extractBinary(archiveData, tmpDir)
 	if err != nil {
 		return fmt.Errorf("extraction failed: %v", err)
 	}
 
-	// Get current executable path
 	executable, err := getExecutable()
 	if err != nil {
 		return fmt.Errorf("error getting executable path: %v", err)
 	}
 
-	// Replace current binary
-	logging.LogMessage("DEBUG", fmt.Sprintf("Replacing binary at %s", executable))
 	if err := os.Rename(binaryPath, executable); err != nil {
 		return fmt.Errorf("error replacing binary: %v", err)
 	}
