@@ -1,12 +1,42 @@
 package update
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
+
+func createTestArchive(content []byte) ([]byte, string) {
+	var buf bytes.Buffer
+	gzWriter := gzip.NewWriter(&buf)
+	tarWriter := tar.NewWriter(gzWriter)
+
+	// Add binary to archive
+	header := &tar.Header{
+		Name:    BinaryName,
+		Size:    int64(len(content)),
+		Mode:    0755,
+		ModTime: time.Now(),
+	}
+
+	tarWriter.WriteHeader(header)
+	tarWriter.Write(content)
+	tarWriter.Close()
+	gzWriter.Close()
+
+	archiveData := buf.Bytes()
+	hash := sha256.Sum256(archiveData)
+	return archiveData, hex.EncodeToString(hash[:])
+}
 
 func TestUpdateBinary(t *testing.T) {
 	// Create a temporary directory for test
@@ -22,18 +52,28 @@ func TestUpdateBinary(t *testing.T) {
 		t.Fatalf("Failed to create test binary: %v", err)
 	}
 
-	// Create test server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("test binary content"))
+	// Create test archive
+	archiveData, checksum := createTestArchive([]byte("test binary content"))
+
+	// Create test servers
+	binaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(archiveData)
 	}))
-	defer ts.Close()
+	defer binaryServer.Close()
+
+	checksumServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "%s  %s\n", checksum, ArchiveName)
+	}))
+	defer checksumServer.Close()
 
 	// Store original values
-	originalURL := UpdateURL
+	originalUpdateURL := UpdateURL
+	originalChecksumURL := ChecksumURL
 	originalGetExecutable := getExecutable
 
-	// Override the URL and executable path for testing
-	UpdateURL = ts.URL + "/%s"
+	// Override the URLs and executable path for testing
+	UpdateURL = binaryServer.URL + "/%s"
+	ChecksumURL = checksumServer.URL + "/%s"
 	getExecutable = func() (string, error) {
 		return testBinary, nil
 	}
@@ -54,6 +94,7 @@ func TestUpdateBinary(t *testing.T) {
 	}
 
 	// Restore original values
-	UpdateURL = originalURL
+	UpdateURL = originalUpdateURL
+	ChecksumURL = originalChecksumURL
 	getExecutable = originalGetExecutable
 }
