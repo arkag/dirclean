@@ -33,6 +33,7 @@ func TestProcessFiles(t *testing.T) {
 	config := config.Config{
 		DeleteOlderThanDays: 5,
 		Paths:               []string{testDir},
+		Mode:                "dry-run",
 	}
 
 	tempFile, err := os.CreateTemp("", "cleanup_")
@@ -42,7 +43,7 @@ func TestProcessFiles(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 	defer tempFile.Close()
 
-	ProcessFiles(config, tempFile, "dry-run")
+	ProcessFiles(config, tempFile)
 	content, err := os.ReadFile(tempFile.Name())
 	if err != nil {
 		t.Fatalf("Error reading temp file: %v", err)

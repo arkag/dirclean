@@ -57,15 +57,16 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 						logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
 						fmt.Fprintln(tempFile, path)
 					case "interactive":
-						fmt.Printf("Delete file %s? (size: %s, modified: %s) (y/n): ",
-							path, formatSize(fileSize), modTime.Format("2006-01-02"))
+						fmt.Printf("Delete file %s? (size: %d bytes, modified: %s) (y/n): ",
+							path, fileSize, modTime)
 						var response string
 						fmt.Scanln(&response)
-						if response == "y" {
+						if response == "y" || response == "Y" {
 							if err := os.Remove(path); err != nil {
 								logging.LogMessage("ERROR", fmt.Sprintf("Error deleting file %s: %v", path, err))
 							} else {
 								logging.LogMessage("INFO", fmt.Sprintf("Deleted file: %s", path))
+								fmt.Fprintln(tempFile, path)
 							}
 						}
 					case "scheduled":
@@ -73,7 +74,12 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 							logging.LogMessage("ERROR", fmt.Sprintf("Error deleting file %s: %v", path, err))
 						} else {
 							logging.LogMessage("INFO", fmt.Sprintf("Deleted file: %s", path))
+							fmt.Fprintln(tempFile, path)
 						}
+					default:
+						logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", config.Mode))
+						logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
+						fmt.Fprintln(tempFile, path)
 					}
 				}
 			}
