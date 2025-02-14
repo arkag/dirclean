@@ -71,10 +71,15 @@ func (f *FileSize) ToBytes() int64 {
 // GetExampleConfigPath returns the OS-specific path for the example config
 func GetExampleConfigPath() string {
 	switch runtime.GOOS {
+	case "darwin":
+		// Check for Apple Silicon first (opt/homebrew)
+		if _, err := os.Stat("/opt/homebrew/share/dirclean/example.config.yaml"); err == nil {
+			return "/opt/homebrew/share/dirclean/example.config.yaml"
+		}
+		// Fallback to Intel Mac path (usr/local)
+		return "/usr/local/share/dirclean/example.config.yaml"
 	case "linux":
 		return "/usr/share/dirclean/example.config.yaml"
-	case "darwin":
-		return "/usr/local/share/dirclean/example.config.yaml"
 	case "windows":
 		return filepath.Join(os.Getenv("ProgramData"), "dirclean", "example.config.yaml")
 	default:
