@@ -232,7 +232,11 @@ jobs:
       - name: Generate checksum file
         run: |
           cd build-artifacts
-          find . -type f \( -name "${{ env.BINARY_NAME }}-*" -o -name "*.rpm" -o -name "*.deb" -o -name "*.pkg.tar.zst" \) -exec sha256sum {} \; > checksums.txt
+          find . -type f \( -name "${{ env.BINARY_NAME }}-*" -o -name "*.rpm" -o -name "*.deb" -o -name "*.pkg.tar.zst" \) -exec sh -c '
+            for file do
+              sha256sum "$file" | sed "s|^\.\/||"
+            done
+          ' sh {} + > checksums.txt
 
       - name: Create GitHub Release
         run: |
