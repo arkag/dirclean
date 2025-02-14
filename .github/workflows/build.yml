@@ -208,7 +208,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [version, build, package]  # Updated dependency
+    needs: [version, build, package]
     permissions:
       contents: write
     steps:
@@ -217,21 +217,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download build artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: build-artifacts
-          pattern: '${{ env.BINARY_NAME }}-*'
-          exclude: |
-            **/*-redhat
-            **/*-debian
-            **/*-arch
           merge-multiple: true
 
       - name: Generate checksum file
         run: |
           cd build-artifacts
-          find . -type f -name "${{ env.BINARY_NAME }}-*" -exec sha256sum {} \; > checksums.txt
+          find . -type f \( -name "${{ env.BINARY_NAME }}-*" -o -name "*.rpm" -o -name "*.deb" -o -name "*.pkg.tar.zst" \) -exec sha256sum {} \; > checksums.txt
 
       - name: Create GitHub Release
         run: |
@@ -245,7 +240,13 @@ jobs:
 
       - name: Upload Release Assets
         run: |
-          for asset in build-artifacts/${{ env.BINARY_NAME }}-* build-artifacts/checksums.txt; do
+          cd build-artifacts
+          for asset in \
+            ${{ env.BINARY_NAME }}-* \
+            *.rpm \
+            *.deb \
+            *.pkg.tar.zst \
+            checksums.txt; do
             gh release upload ${{ needs.version.outputs.semVer }} "$asset"
           done
         env:
