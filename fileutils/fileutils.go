@@ -85,9 +85,17 @@ func GetTotalSize(filename string) float64 {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		filePath := scanner.Text()
-		info, err := os.Stat(filePath)
+		absPath, err := filepath.Abs(filePath)
 		if err != nil {
-			logging.LogMessage("ERROR", fmt.Sprintf("Error getting file info for %s: %v", filePath, err))
+			logging.LogMessage("ERROR", fmt.Sprintf("Error resolving absolute path for %s: %v", filePath, err))
+			continue
+		}
+
+		logging.LogMessage("DEBUG", fmt.Sprintf("Attempting to stat file: %s (abs: %s)", filePath, absPath))
+
+		info, err := os.Stat(absPath)
+		if err != nil {
+			logging.LogMessage("ERROR", fmt.Sprintf("Error getting file info for %s (abs: %s): %v", filePath, absPath, err))
 			continue
 		}
 		totalSize += info.Size()
