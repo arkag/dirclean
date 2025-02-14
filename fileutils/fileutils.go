@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/arkag/dirclean/logging"
+	"github.com/arkag/dirclean/utils"
 )
 
 type DirInfo struct {
@@ -85,17 +86,22 @@ func GetTotalSize(filename string) float64 {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		filePath := scanner.Text()
-		absPath, err := filepath.Abs(filePath)
-		if err != nil {
-			logging.LogMessage("ERROR", fmt.Sprintf("Error resolving absolute path for %s: %v", filePath, err))
+
+		// Use the existing utils.GetAbsPath function
+		absPath := utils.GetAbsPath(filePath)
+
+		// Verify file exists before attempting to stat
+		if !utils.FileExists(absPath) {
+			logging.LogMessage("ERROR", fmt.Sprintf("File does not exist at path: %s", absPath))
 			continue
 		}
 
-		logging.LogMessage("DEBUG", fmt.Sprintf("Attempting to stat file: %s (abs: %s)", filePath, absPath))
+		logging.LogMessage("DEBUG", fmt.Sprintf("Processing file: %s\nAbsolute path: %s", filePath, absPath))
 
 		info, err := os.Stat(absPath)
 		if err != nil {
-			logging.LogMessage("ERROR", fmt.Sprintf("Error getting file info for %s (abs: %s): %v", filePath, absPath, err))
+			logging.LogMessage("ERROR", fmt.Sprintf("Error getting file info for %s\nAbsolute path: %s\nError: %v",
+				filePath, absPath, err))
 			continue
 		}
 		totalSize += info.Size()
