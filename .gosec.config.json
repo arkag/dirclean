@@ -1,0 +1,44 @@
+{
+  "global": {
+    "audit": {
+      "enabled": true,
+      "include-generated": false
+    }
+  },
+  "rules": {
+    "G101": true, // Look for hard coded credentials
+    "G102": true, // Bind to all interfaces
+    "G103": true, // Audit the use of unsafe block
+    "G104": true, // Audit errors not checked
+    "G106": true, // Audit the use of ssh.InsecureIgnoreHostKey
+    "G107": true, // Url provided to HTTP request as taint input
+    "G108": true, // Profiling endpoint automatically exposed
+    "G109": true, // Potential Integer overflow made by strconv.Atoi result conversion to int16/32
+    "G110": true, // Potential DoS vulnerability via decompression bomb
+    "G111": true, // Potential directory traversal
+    "G112": true, // Potential slowloris attack
+    "G113": true, // Usage of Rat.SetString in math/big with an overflow (CVE-2022-23772)
+    "G114": true, // Use of net/http serve function that has no support for setting timeouts
+    "G201": true, // SQL query construction using format string
+    "G202": true, // SQL query construction using string concatenation
+    "G203": true, // Use of unescaped data in HTML templates
+    "G204": true, // Audit use of command execution
+    "G301": true, // Poor file permissions used when creating a directory
+    "G302": true, // Poor file permissions used with chmod
+    "G303": true, // Creating tempfile using a predictable path
+    "G304": true, // File path provided as taint input
+    "G305": true, // File traversal when extracting zip archive
+    "G306": true, // Poor file permissions used when writing to a new file
+    "G307": true, // Deferring a method which returns an error
+    "G401": true, // Detect the usage of weak cryptographic primitives
+    "G402": true, // Look for bad TLS connection settings
+    "G403": true, // Ensure minimum RSA key length of 2048 bits
+    "G404": true, // Insecure random number source (rand)
+    "G501": true, // Import blocklist: crypto/md5
+    "G502": true, // Import blocklist: crypto/des
+    "G503": true, // Import blocklist: crypto/rc4
+    "G504": true, // Import blocklist: net/http/cgi
+    "G505": true, // Import blocklist: crypto/sha1
+    "G601": true // Implicit memory aliasing of items from a range statement
+  }
+}

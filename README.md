@@ -216,3 +216,37 @@ Contributions are welcome! Please:
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Security and Code Quality
+
+This project employs multiple security and code quality scanning tools:
+
+- **CodeQL**: GitHub's semantic code analysis engine
+- **gosec**: Go security checker
+- **staticcheck**: Advanced Go linter
+- **govulncheck**: Go vulnerability checker
+- **nancy**: Dependency vulnerability scanner
+- **go vet**: Go source code static analysis
+
+Security scans run:
+- On every push to main
+- On every pull request
+- Weekly scheduled scans
+
+You can view scan results in the Security tab of the GitHub repository.
+
+For local security scanning:
+
+```bash
+# Install security tools
+go install github.com/securego/gosec/v2/cmd/gosec@latest
+go install honnef.co/go/staticcheck/cmd/staticcheck@latest
+go install golang.org/x/vuln/cmd/govulncheck@latest
+go install github.com/sonatype-nexus-community/nancy@latest
+
+# Run security checks
+gosec ./...
+staticcheck ./...
+govulncheck ./...
+go list -json -deps ./... | nancy sleuth
+```
