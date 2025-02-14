@@ -97,15 +97,37 @@ install_binary() {
     print_step "Extracting archive..."
     tar xzf "${TEMP_DIR}/${ARCHIVE_NAME}" -C "${TEMP_DIR}"
     
-    print_step "Installing binary..."
+    print_step "Installing binary and config..."
     if [ "$EUID" -eq 0 ]; then
+        # Install binary
         mv "${TEMP_DIR}/dirclean" /usr/local/bin/
         chmod 755 /usr/local/bin/dirclean
+        
+        # Install config
+        mkdir -p /usr/share/dirclean
+        install -m 644 "${TEMP_DIR}/example.config.yaml" /usr/share/dirclean/
+        
+        if [ "${OS}" = "darwin" ]; then
+            # Special handling for macOS
+            if [ -d "/opt/homebrew" ]; then
+                # Apple Silicon
+                ln -sf /usr/share/dirclean/example.config.yaml /opt/homebrew/share/dirclean/example.config.yaml
+            else
+                # Intel Mac
+                ln -sf /usr/share/dirclean/example.config.yaml /usr/local/share/dirclean/example.config.yaml
+            fi
+        fi
     else
-        print_warning "Running without root privileges. Installing to ~/.local/bin/"
+        print_warning "Running without root privileges. Installing to user directories..."
+        # Install binary
         mkdir -p ~/.local/bin
         mv "${TEMP_DIR}/dirclean" ~/.local/bin/
         chmod 755 ~/.local/bin/dirclean
+        
+        # Install config
+        mkdir -p ~/.config/dirclean
+        install -m 644 "${TEMP_DIR}/example.config.yaml" ~/.config/dirclean/
+        
         if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
             print_warning "Please add ~/.local/bin to your PATH"
         fi
