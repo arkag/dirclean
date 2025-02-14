@@ -80,7 +80,7 @@ jobs:
 
       - name: Build
         run: |
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./main.go
+          CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./main.go
 
       - name: Create tarball
         run: |
@@ -94,58 +94,58 @@ jobs:
             ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }}
             ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz
 
-  build-legacy:
-    runs-on: ubuntu-latest
-    needs: [version]
-    container: 
-      image: centos:7
-    steps:
-      - name: Update mirrors to vault
-        run: |
-          # Update base CentOS repositories
-          sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-          sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+  # build-legacy:
+  #   runs-on: ubuntu-latest
+  #   needs: [version]
+  #   container: 
+  #     image: centos:7
+  #   steps:
+  #     - name: Update mirrors to vault
+  #       run: |
+  #         # Update base CentOS repositories
+  #         sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+  #         sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
           
-          # Install and update SCL repository
-          yum install -y centos-release-scl
-          sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-SCLo-*.repo
-          sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*.repo
+  #         # Install and update SCL repository
+  #         yum install -y centos-release-scl
+  #         sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-SCLo-*.repo
+  #         sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-SCLo-*.repo
           
-          yum clean all
-          yum makecache
+  #         yum clean all
+  #         yum makecache
 
-      - name: Install build dependencies
-        run: |
-          yum install -y devtoolset-7-gcc git wget tar gzip
+  #     - name: Install build dependencies
+  #       run: |
+  #         yum install -y devtoolset-7-gcc git wget tar gzip
           
-          # Install Go 1.21
-          wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
-          tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
-          echo "PATH=$PATH:/usr/local/go/bin" >> $GITHUB_ENV
+  #         # Install Go 1.21
+  #         wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
+  #         tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+  #         echo "PATH=$PATH:/usr/local/go/bin" >> $GITHUB_ENV
 
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Build
-        run: |
-          source /opt/rh/devtoolset-7/enable
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build \
-            -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=linux/amd64 -X main.isLegacy=true" \
-            -o ${{ env.BINARY_NAME }}-legacy
+  #     - name: Build
+  #       run: |
+  #         source /opt/rh/devtoolset-7/enable
+  #         GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build \
+  #           -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=linux/amd64 -X main.isLegacy=true" \
+  #           -o ${{ env.BINARY_NAME }}-legacy
 
-      - name: Create tarball
-        run: |
-          tar -czvf ${{ env.BINARY_NAME }}-linux-amd64-legacy.tar.gz \
-            ${{ env.BINARY_NAME }}-legacy \
-            example.config.yaml
+  #     - name: Create tarball
+  #       run: |
+  #         tar -czvf ${{ env.BINARY_NAME }}-linux-amd64-legacy.tar.gz \
+  #           ${{ env.BINARY_NAME }}-legacy \
+  #           example.config.yaml
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.BINARY_NAME }}-linux-amd64-legacy
-          path: |
-            ${{ env.BINARY_NAME }}-legacy
-            ${{ env.BINARY_NAME }}-linux-amd64-legacy.tar.gz
+  #     - name: Upload artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ${{ env.BINARY_NAME }}-linux-amd64-legacy
+  #         path: |
+  #           ${{ env.BINARY_NAME }}-legacy
+  #           ${{ env.BINARY_NAME }}-linux-amd64-legacy.tar.gz
 
   package:
     needs: [version, build, test]
@@ -273,7 +273,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [version, build, build-legacy, package]
+    needs: [version, build, package]
     permissions:
       contents: write
     steps:
