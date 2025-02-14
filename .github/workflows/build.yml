@@ -80,7 +80,10 @@ jobs:
 
       - name: Build
         run: |
-          CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags "-X main.appVersion=${{ needs.version.outputs.semVer }} -X main.appOsArch=${{ matrix.os }}/${{ matrix.arch }}" -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./main.go
+          CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build \
+            -ldflags "-X github.com/arkag/dirclean/update.AppVersion=${{ needs.version.outputs.semVer }} \
+                     -X github.com/arkag/dirclean/update.AppOsArch=${{ matrix.os }}/${{ matrix.arch }}" \
+            -o ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} ./main.go
 
       - name: Create tarball
         run: |
