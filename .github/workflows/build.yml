@@ -84,7 +84,9 @@ jobs:
 
       - name: Create tarball
         run: |
-          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          mkdir -p config
+          cp config/example.config.yaml config/
+          tar -czvf ${{ env.BINARY_NAME }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz ${{ env.BINARY_NAME }}${{ matrix.os == 'windows' && '.exe' || '' }} config/example.config.yaml
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -117,26 +119,30 @@ jobs:
               
               %install
               mkdir -p %{buildroot}%{_bindir}
+              mkdir -p %{buildroot}%{_sysconfdir}/dirclean
+              mkdir -p %{buildroot}%{_datadir}/dirclean
               install -m 755 %{_sourcedir}/dirclean %{buildroot}%{_bindir}/dirclean
+              install -m 644 %{_sourcedir}/config/example.config.yaml %{buildroot}%{_sysconfdir}/dirclean/
+              ln -sf %{_sysconfdir}/dirclean/example.config.yaml %{buildroot}%{_datadir}/dirclean/example.config.yaml
               
               %files
               %{_bindir}/dirclean
-              
-              %changelog
-              * $(date '+%a %b %d %Y') GitHub Actions <actions@github.com> - ${{ needs.version.outputs.semVer }}-1
-              - Automated build
+              %{_sysconfdir}/dirclean/example.config.yaml
+              %{_datadir}/dirclean/example.config.yaml
               EOF
               cp dirclean ~/rpmbuild/SOURCES/
+              cp -r config ~/rpmbuild/SOURCES/
               rpmbuild -ba ~/rpmbuild/SPECS/dirclean.spec
               cp ~/rpmbuild/RPMS/*/*.rpm .
-
           - type: debian
             container: ubuntu:latest
             cmd: |
               apt-get update
               apt-get install -y debhelper
-              mkdir -p debian/usr/bin debian/DEBIAN
+              mkdir -p debian/usr/bin debian/etc/dirclean debian/usr/share/dirclean debian/DEBIAN
               cp dirclean debian/usr/bin/
+              cp config/example.config.yaml debian/etc/dirclean/
+              ln -sf /etc/dirclean/example.config.yaml debian/usr/share/dirclean/example.config.yaml
               cat << EOF > debian/DEBIAN/control
               Package: dirclean
               Version: ${{ needs.version.outputs.semVer }}
@@ -149,7 +155,6 @@ jobs:
                 based on a YAML configuration file.
               EOF
               dpkg-deb --build debian .
-
           - type: arch
             container: archlinux:latest
             cmd: |
@@ -168,6 +173,9 @@ jobs:
               
               package() {
                 install -Dm755 "\$srcdir/../dirclean" "\$pkgdir/usr/bin/dirclean"
+                install -Dm644 "\$srcdir/../config/example.config.yaml" "\$pkgdir/etc/dirclean/example.config.yaml"
+                install -dm755 "\$pkgdir/usr/share/dirclean"
+                ln -sf /etc/dirclean/example.config.yaml "\$pkgdir/usr/share/dirclean/example.config.yaml"
               }
               EOF
               chown -R builder:builder .
