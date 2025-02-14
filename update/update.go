@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,14 +46,18 @@ func init() {
 }
 
 func downloadFile(url string) ([]byte, error) {
+	logging.LogMessage("DEBUG", fmt.Sprintf("Attempting to download from: %s", url))
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("HTTP GET failed: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to download: %s", resp.Status)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP status %d: %s\nURL: %s\nResponse: %s",
+			resp.StatusCode, resp.Status, url, string(body))
 	}
 
 	return io.ReadAll(resp.Body)
@@ -139,7 +144,31 @@ func extractBinary(archiveData []byte, tmpDir string) (string, error) {
 }
 
 func UpdateBinary(tag string) error {
+	if tag == "latest" {
+		logging.LogMessage("DEBUG", "Fetching latest release tag...")
+		// Add logic to fetch latest release tag from GitHub API
+		resp, err := http.Get("https://api.github.com/repos/arkag/dirclean/releases/latest")
+		if err != nil {
+			return fmt.Errorf("failed to fetch latest release: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to fetch latest release: HTTP %d", resp.StatusCode)
+		}
+
+		var release struct {
+			TagName string `json:"tag_name"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+			return fmt.Errorf("failed to parse release info: %v", err)
+		}
+		tag = release.TagName
+		logging.LogMessage("DEBUG", fmt.Sprintf("Latest release tag: %s", tag))
+	}
+
 	downloadURL := fmt.Sprintf(UpdateURL, tag)
+	logging.LogMessage("DEBUG", fmt.Sprintf("Download URL: %s", downloadURL))
 
 	// Download archive
 	archiveData, err := downloadFile(downloadURL)
@@ -148,6 +177,7 @@ func UpdateBinary(tag string) error {
 	}
 
 	// Verify checksum
+	logging.LogMessage("DEBUG", "Verifying checksum...")
 	if err := verifyChecksum(archiveData, tag); err != nil {
 		return fmt.Errorf("checksum verification failed: %v", err)
 	}
@@ -160,6 +190,7 @@ func UpdateBinary(tag string) error {
 	defer os.RemoveAll(tmpDir)
 
 	// Extract binary
+	logging.LogMessage("DEBUG", "Extracting binary...")
 	binaryPath, err := extractBinary(archiveData, tmpDir)
 	if err != nil {
 		return fmt.Errorf("extraction failed: %v", err)
@@ -172,10 +203,12 @@ func UpdateBinary(tag string) error {
 	}
 
 	// Replace current binary
+	logging.LogMessage("DEBUG", fmt.Sprintf("Replacing binary at %s", executable))
 	if err := os.Rename(binaryPath, executable); err != nil {
 		return fmt.Errorf("error replacing binary: %v", err)
 	}
 
+	logging.LogMessage("INFO", fmt.Sprintf("Successfully updated to version %s", tag))
 	return nil
 }
 
