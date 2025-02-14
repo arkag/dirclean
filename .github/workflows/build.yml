@@ -135,29 +135,19 @@ jobs:
             cmd: |
               apt-get update
               apt-get install -y debhelper
-              mkdir -p debian/usr/bin
+              mkdir -p debian/usr/bin debian/DEBIAN
               cp dirclean debian/usr/bin/
-              cat << EOF > debian/control
-              Source: dirclean
+              cat << EOF > debian/DEBIAN/control
+              Package: dirclean
+              Version: ${{ needs.version.outputs.semVer }}
               Section: utils
               Priority: optional
+              Architecture: amd64
               Maintainer: GitHub Actions <actions@github.com>
-              
-              Package: dirclean
-              Architecture: any
               Description: Clean up old files from directories
                 DirClean is a program designed to clean up old files from directories
                 based on a YAML configuration file.
               EOF
-              cat << EOF > debian/rules
-              #!/usr/bin/make -f
-              %:
-                dh \$@
-              override_dh_auto_build:
-              override_dh_auto_test:
-              EOF
-              chmod +x debian/rules
-              mkdir -p debian/DEBIAN
               dpkg-deb --build debian .
 
           - type: arch
