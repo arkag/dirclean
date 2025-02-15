@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -41,13 +42,14 @@ func parseLogLevel(level string) LogLevel {
 	}
 }
 
-func InitLogging(logFilePath string) {
+func InitLogging(logFilePath string) error {
 	logFile = logFilePath
 	f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		log.Fatalf("Error opening log file: %v", err)
+		return fmt.Errorf("error opening log file: %v", err)
 	}
 	log.SetOutput(f)
+	return nil
 }
 
 func SetLogLevel(level string) {
@@ -55,15 +57,23 @@ func SetLogLevel(level string) {
 }
 
 func LogMessage(level, message string) {
-	messageLevel := parseLogLevel(level)
-	configuredLevel := parseLogLevel(logLevel)
-
-	// Only log if message severity is equal to or higher than configured severity
-	if messageLevel >= configuredLevel {
+	if shouldLog(level) {
 		log.Printf("[%s] %s", level, message)
 	}
 }
 
 func GenerateUUID() string {
 	return uuid.New().String()
+}
+
+// GetLogLevel returns the current log level as a string
+func GetLogLevel() string {
+	return logLevel
+}
+
+// shouldLog determines if a message should be logged based on the configured log level
+func shouldLog(messageLevel string) bool {
+	messageLogLevel := parseLogLevel(messageLevel)
+	configuredLogLevel := parseLogLevel(logLevel)
+	return messageLogLevel >= configuredLogLevel
 }

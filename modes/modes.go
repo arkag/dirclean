@@ -33,8 +33,8 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 	matchedDirs := ValidateDirs(paths)
 
 	if config.Mode == "analyze" {
-		fmt.Println("\nAnalyzing directories for old files...")
-		fmt.Println("=====================================")
+		fmt.Println("\nAnalyzing directories for old files and broken symlinks...")
+		fmt.Println("===================================================")
 	}
 
 	for _, dir := range matchedDirs {
@@ -43,6 +43,35 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 				logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", path, err))
 				return nil
 			}
+
+			// Check for broken symlinks first if enabled
+			if config.CleanBrokenSymlinks {
+				// Get symlink info without following the link
+				linkInfo, err := os.Lstat(path)
+				if err == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
+					// Read symlink target
+					target, err := os.Readlink(path)
+					if err != nil {
+						logging.LogMessage("ERROR", fmt.Sprintf("Error reading symlink %s: %v", path, err))
+						return nil
+					}
+
+					// Make target path absolute if it's relative
+					if !filepath.IsAbs(target) {
+						target = filepath.Join(filepath.Dir(path), target)
+					}
+
+					// Check if target exists
+					_, err = os.Stat(target)
+					if os.IsNotExist(err) {
+						// Handle broken symlink based on mode
+						handleBrokenSymlink(config.Mode, path, tempFile)
+						return nil
+					}
+				}
+			}
+
+			// Process regular files
 			if !info.IsDir() {
 				fileSize := info.Size()
 
@@ -55,42 +84,7 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 				modTime := info.ModTime()
 				cutoff := time.Now().AddDate(0, 0, -days)
 				if modTime.Before(cutoff) {
-					if config.Mode == "analyze" {
-						logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %s, modified: %s)",
-							path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
-					}
-					switch config.Mode {
-					case "analyze":
-						logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %s, modified: %s)",
-							path, fileutils.FormatSize(fileSize), modTime))
-					case "dry-run":
-						logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
-						fmt.Fprintln(tempFile, path)
-					case "interactive":
-						fmt.Printf("Delete file %s? (size: %s, modified: %s) (y/n): ",
-							path, fileutils.FormatSize(fileSize), modTime)
-						var response string
-						fmt.Scanln(&response)
-						if response == "y" || response == "Y" {
-							if err := os.Remove(path); err != nil {
-								logging.LogMessage("ERROR", fmt.Sprintf("Error deleting file %s: %v", path, err))
-							} else {
-								logging.LogMessage("INFO", fmt.Sprintf("Deleted file: %s", path))
-								fmt.Fprintln(tempFile, path)
-							}
-						}
-					case "scheduled":
-						if err := os.Remove(path); err != nil {
-							logging.LogMessage("ERROR", fmt.Sprintf("Error deleting file %s: %v", path, err))
-						} else {
-							logging.LogMessage("INFO", fmt.Sprintf("Deleted file: %s", path))
-							fmt.Fprintln(tempFile, path)
-						}
-					default:
-						logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", config.Mode))
-						logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
-						fmt.Fprintln(tempFile, path)
-					}
+					handleOldFile(config.Mode, path, fileSize, modTime, tempFile)
 				}
 			}
 			return nil
@@ -177,4 +171,61 @@ func formatSize(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+func handleBrokenSymlink(mode string, path string, tempFile *os.File) {
+	switch mode {
+	case "analyze":
+		logging.LogMessage("INFO", fmt.Sprintf("Found broken symlink: %s", path))
+	case "dry-run":
+		logging.LogMessage("INFO", fmt.Sprintf("Would delete broken symlink: %s", path))
+		fmt.Fprintln(tempFile, path)
+	case "interactive":
+		fmt.Printf("Delete broken symlink %s? (y/n): ", path)
+		var response string
+		fmt.Scanln(&response)
+		if response == "y" || response == "Y" {
+			deleteFile(path, tempFile)
+		}
+	case "scheduled":
+		deleteFile(path, tempFile)
+	default:
+		logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", mode))
+		logging.LogMessage("INFO", fmt.Sprintf("Would delete broken symlink: %s", path))
+		fmt.Fprintln(tempFile, path)
+	}
+}
+
+func handleOldFile(mode string, path string, fileSize int64, modTime time.Time, tempFile *os.File) {
+	switch mode {
+	case "analyze":
+		logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %s, modified: %s)",
+			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
+	case "dry-run":
+		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
+		fmt.Fprintln(tempFile, path)
+	case "interactive":
+		fmt.Printf("Delete file %s? (size: %s, modified: %s) (y/n): ",
+			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02"))
+		var response string
+		fmt.Scanln(&response)
+		if response == "y" || response == "Y" {
+			deleteFile(path, tempFile)
+		}
+	case "scheduled":
+		deleteFile(path, tempFile)
+	default:
+		logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", mode))
+		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
+		fmt.Fprintln(tempFile, path)
+	}
+}
+
+func deleteFile(path string, tempFile *os.File) {
+	if err := os.Remove(path); err != nil {
+		logging.LogMessage("ERROR", fmt.Sprintf("Error deleting file %s: %v", path, err))
+	} else {
+		logging.LogMessage("INFO", fmt.Sprintf("Deleted file: %s", path))
+		fmt.Fprintln(tempFile, path)
+	}
 }

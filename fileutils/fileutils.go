@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/arkag/dirclean/logging"
@@ -237,4 +239,72 @@ func GetSuggestedDirs(rootPaths []string, minSizeMB int64) []DirInfo {
 	}
 
 	return suggestions
+}
+
+// IsOlderThan checks if a file is older than the specified number of days
+func IsOlderThan(path string, days int) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	modTime := info.ModTime()
+	cutoff := time.Now().AddDate(0, 0, -days)
+	return modTime.Before(cutoff)
+}
+
+// GetFileSize returns the size of a file in bytes
+func GetFileSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
+}
+
+// ParseSize converts a string representation of size (e.g., "1KB", "1MB") to bytes
+func ParseSize(sizeStr string) (int64, error) {
+	if sizeStr == "" {
+		return 0, fmt.Errorf("empty size string")
+	}
+
+	// Handle plain bytes case
+	if !strings.ContainsAny(sizeStr, "KMGTPEkmgtpe") {
+		bytes, err := strconv.ParseInt(sizeStr, 10, 64)
+		if err != nil || bytes < 0 {
+			return 0, fmt.Errorf("invalid size format: %s", sizeStr)
+		}
+		return bytes, nil
+	}
+
+	var value float64
+	var unit string
+	_, err := fmt.Sscanf(sizeStr, "%f%s", &value, &unit)
+	if err != nil {
+		return 0, fmt.Errorf("invalid size format: %s", sizeStr)
+	}
+
+	if value < 0 {
+		return 0, fmt.Errorf("negative size not allowed")
+	}
+
+	multiplier := int64(1)
+	switch strings.ToUpper(unit) {
+	case "KB":
+		multiplier = 1024
+	case "MB":
+		multiplier = 1024 * 1024
+	case "GB":
+		multiplier = 1024 * 1024 * 1024
+	case "TB":
+		multiplier = 1024 * 1024 * 1024 * 1024
+	case "PB":
+		multiplier = 1024 * 1024 * 1024 * 1024 * 1024
+	case "EB":
+		multiplier = 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+	default:
+		return 0, fmt.Errorf("invalid size unit: %s", unit)
+	}
+
+	return int64(value * float64(multiplier)), nil
 }

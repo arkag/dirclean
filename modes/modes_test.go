@@ -11,7 +11,8 @@ import (
 )
 
 func TestProcessFiles(t *testing.T) {
-	testDir := "test_dir"
+	testDir := t.TempDir()
+
 	err := os.Mkdir(testDir, 0755)
 	if err != nil {
 		t.Fatalf("Error creating test directory: %v", err)

@@ -24,6 +24,7 @@ type Config struct {
 	Mode                string    `yaml:"mode,omitempty"`
 	LogLevel            string    `yaml:"log_level,omitempty"`
 	LogFile             string    `yaml:"log_file,omitempty"`
+	CleanBrokenSymlinks bool      `yaml:"clean_broken_symlinks,omitempty"`
 }
 
 type GlobalConfig struct {
@@ -157,4 +158,26 @@ type CLIFlags struct {
 	LogLevel    string
 	MinFileSize *FileSize
 	MaxFileSize *FileSize
+}
+
+// ValidateConfig validates the configuration values
+func ValidateConfig(config Config) error {
+	// Validate mode if specified
+	if config.Mode != "" && config.Mode != "analyze" && config.Mode != "dry-run" &&
+		config.Mode != "interactive" && config.Mode != "scheduled" {
+		return fmt.Errorf("invalid mode: %s", config.Mode)
+	}
+
+	// Validate log level if specified
+	if config.LogLevel != "" && config.LogLevel != "DEBUG" && config.LogLevel != "INFO" &&
+		config.LogLevel != "WARN" && config.LogLevel != "ERROR" && config.LogLevel != "FATAL" {
+		return fmt.Errorf("invalid log level: %s", config.LogLevel)
+	}
+
+	// Validate delete_older_than_days
+	if config.DeleteOlderThanDays < 0 {
+		return fmt.Errorf("delete_older_than_days must be non-negative, got: %d", config.DeleteOlderThanDays)
+	}
+
+	return nil
 }

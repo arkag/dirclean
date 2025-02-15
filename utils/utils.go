@@ -73,3 +73,38 @@ func GetAbsPath(path string) string {
 	}
 	return absPath
 }
+
+// IsBrokenSymlink checks if a path is a symlink and if it's broken
+func IsBrokenSymlink(path string) (bool, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false, err
+	}
+
+	// If it's not a symlink, return false
+	if info.Mode()&os.ModeSymlink == 0 {
+		return false, nil
+	}
+
+	// Read the symlink target
+	target, err := os.Readlink(path)
+	if err != nil {
+		return false, err
+	}
+
+	// If the target is relative, make it absolute
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(path), target)
+	}
+
+	// Check if the target exists
+	_, err = os.Stat(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return true, nil
+		}
+		return false, err
+	}
+
+	return false, nil
+}

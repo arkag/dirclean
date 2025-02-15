@@ -143,6 +143,7 @@ The example configuration includes:
   - `dry-run`: List files that would be deleted without actually removing them
   - `interactive`: Prompt for confirmation before deleting each file
   - `scheduled`: Delete files automatically without confirmation
+- **`clean_broken_symlinks`**: Boolean flag to enable cleaning of broken symbolic links (default: `false`)
 
 ---
 
