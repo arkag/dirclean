@@ -88,6 +88,12 @@ func main() {
 		logging.InitLogging(cliFlags.LogFile)
 	}
 
+	// Set log level - first from config defaults, then override with CLI flag if present
+	logging.SetLogLevel(globalConfig.Defaults.LogLevel)
+	if cliFlags.LogLevel != "" {
+		logging.SetLogLevel(cliFlags.LogLevel)
+	}
+
 	dfBefore, err := fileutils.GetDF("/")
 	if err != nil {
 		logging.LogMessage("ERROR", fmt.Sprintf("Error getting disk usage before: %v", err))
