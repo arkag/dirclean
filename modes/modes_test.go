@@ -11,7 +11,7 @@ import (
 )
 
 func TestProcessFiles(t *testing.T) {
-	testDir := t.TempDir()
+	testDir := t.TempDir() + "/test_dir"
 
 	err := os.Mkdir(testDir, 0755)
 	if err != nil {
