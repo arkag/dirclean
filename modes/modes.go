@@ -13,7 +13,7 @@ import (
 )
 
 func ProcessFiles(config config.Config, tempFile *os.File) {
-	days := config.DeleteOlderThanDays
+	days := config.OlderThanDays
 	paths := config.Paths
 
 	if days <= 0 {
@@ -37,60 +37,133 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 		fmt.Println("===================================================")
 	}
 
+	type DirSummary struct {
+		path           string
+		totalFiles     int
+		oldFiles       int
+		totalSize      int64
+		oldFilesSize   int64
+		brokenSymlinks int
+	}
+
 	for _, dir := range matchedDirs {
-		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", path, err))
-				return nil
-			}
+		if config.Mode == "analyze" {
+			summary := DirSummary{path: dir}
+			cutoff := time.Now().AddDate(0, 0, -days)
 
-			// Check for broken symlinks first if enabled
-			if config.CleanBrokenSymlinks {
-				// Get symlink info without following the link
-				linkInfo, err := os.Lstat(path)
-				if err == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
-					// Read symlink target
-					target, err := os.Readlink(path)
-					if err != nil {
-						logging.LogMessage("ERROR", fmt.Sprintf("Error reading symlink %s: %v", path, err))
-						return nil
-					}
-
-					// Make target path absolute if it's relative
-					if !filepath.IsAbs(target) {
-						target = filepath.Join(filepath.Dir(path), target)
-					}
-
-					// Check if target exists
-					_, err = os.Stat(target)
-					if os.IsNotExist(err) {
-						// Handle broken symlink based on mode
-						handleBrokenSymlink(config.Mode, path, tempFile)
-						return nil
-					}
-				}
-			}
-
-			// Process regular files
-			if !info.IsDir() {
-				fileSize := info.Size()
-
-				// Check file size constraints
-				if (minBytes > 0 && fileSize < minBytes) ||
-					(maxBytes > 0 && fileSize > maxBytes) {
+			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", path, err))
 					return nil
 				}
 
-				modTime := info.ModTime()
-				cutoff := time.Now().AddDate(0, 0, -days)
-				if modTime.Before(cutoff) {
-					handleOldFile(config.Mode, path, fileSize, modTime, tempFile)
+				if !info.IsDir() {
+					fileSize := info.Size()
+					if (minBytes <= 0 || fileSize >= minBytes) &&
+						(maxBytes <= 0 || fileSize <= maxBytes) {
+						summary.totalFiles++
+						summary.totalSize += fileSize
+
+						if info.ModTime().Before(cutoff) {
+							summary.oldFiles++
+							summary.oldFilesSize += fileSize
+						}
+					}
+
+					// Check for broken symlinks if enabled
+					if config.CleanBrokenSymlinks {
+						linkInfo, err := os.Lstat(path)
+						if err == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
+							target, err := os.Readlink(path)
+							if err == nil {
+								if !filepath.IsAbs(target) {
+									target = filepath.Join(filepath.Dir(path), target)
+								}
+								if _, err := os.Stat(target); os.IsNotExist(err) {
+									summary.brokenSymlinks++
+								}
+							}
+						}
+					}
 				}
+				return nil
+			})
+
+			if err != nil {
+				logging.LogMessage("ERROR", fmt.Sprintf("Error walking directory %s: %v", dir, err))
+				continue
 			}
-			return nil
-		})
-		if err != nil {
-			logging.LogMessage("ERROR", fmt.Sprintf("Error walking directory %s: %v", dir, err))
+
+			// Print directory summary
+			fmt.Printf("\nDirectory: %s\n", summary.path)
+			fmt.Printf("├── Total files: %d\n", summary.totalFiles)
+			fmt.Printf("├── Files older than %d days: %d (%.1f%%)\n",
+				days,
+				summary.oldFiles,
+				float64(summary.oldFiles)/float64(summary.totalFiles)*100)
+			fmt.Printf("├── Total size: %s\n", fileutils.FormatSize(summary.totalSize))
+			fmt.Printf("├── Size of old files: %s (%.1f%%)\n",
+				fileutils.FormatSize(summary.oldFilesSize),
+				float64(summary.oldFilesSize)/float64(summary.totalSize)*100)
+			if config.CleanBrokenSymlinks {
+				fmt.Printf("└── Broken symlinks: %d\n", summary.brokenSymlinks)
+			}
+		} else {
+			// Original processing for non-analyze modes
+			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", path, err))
+					return nil
+				}
+
+				// Check for broken symlinks first if enabled
+				if config.CleanBrokenSymlinks {
+					// Get symlink info without following the link
+					linkInfo, err := os.Lstat(path)
+					if err == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
+						// Read symlink target
+						target, err := os.Readlink(path)
+						if err != nil {
+							logging.LogMessage("ERROR", fmt.Sprintf("Error reading symlink %s: %v", path, err))
+							return nil
+						}
+
+						// Make target path absolute if it's relative
+						if !filepath.IsAbs(target) {
+							target = filepath.Join(filepath.Dir(path), target)
+						}
+
+						// Check if target exists
+						_, err = os.Stat(target)
+						if os.IsNotExist(err) {
+							// Handle broken symlink based on mode
+							handleBrokenSymlink(config.Mode, path, tempFile)
+							return nil
+						}
+					}
+				}
+
+				// Process regular files
+				if !info.IsDir() {
+					fileSize := info.Size()
+
+					// Check file size constraints
+					if (minBytes > 0 && fileSize < minBytes) ||
+						(maxBytes > 0 && fileSize > maxBytes) {
+						return nil
+					}
+
+					modTime := info.ModTime()
+					cutoff := time.Now().AddDate(0, 0, -days)
+					if modTime.Before(cutoff) {
+						handleOldFile(config.Mode, path, fileSize, modTime, tempFile)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				logging.LogMessage("ERROR", fmt.Sprintf("Error walking directory %s: %v", dir, err))
+			}
 		}
 	}
 
