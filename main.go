@@ -17,7 +17,7 @@ var (
 	updateFlag   = flag.Bool("update", false, "Update the application to the specified version")
 	tagFlag      = flag.String("tag", "latest", "Specify the version tag to update to (default: latest)")
 	modeFlag     = flag.String("mode", "", "Specify the mode: analyze, dry-run, interactive, scheduled")
-	configFlag   = flag.String("config", "config.yaml", "Path to config file")
+	configFlag   = flag.String("config", "config.yaml", "Path to config file (default: /etc/dirclean/config.yaml on Linux)")
 	logFlag      = flag.String("log", "", "Path to log file")
 	logLevelFlag = flag.String("log-level", "", "Log level (DEBUG, INFO, WARN, ERROR, FATAL)")
 	minSizeFlag  = flag.String("min-size", "", "Minimum file size (e.g., 100MB)")

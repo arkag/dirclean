@@ -90,22 +90,46 @@ func GetExampleConfigPath() string {
 	}
 }
 
-// LoadConfig attempts to load the config file, falling back to the example config if specified file doesn't exist
+// getDefaultConfigPath returns the OS-specific system-level path for the default config
+func getDefaultConfigPath() string {
+	switch runtime.GOOS {
+	case "darwin":
+		// Check for Apple Silicon first (opt/homebrew)
+		if _, err := os.Stat("/opt/homebrew/etc/dirclean"); err == nil {
+			return "/opt/homebrew/etc/dirclean/config.yaml"
+		}
+		// Fallback to Intel Mac path
+		return "/usr/local/etc/dirclean/config.yaml"
+	case "linux":
+		return "/etc/dirclean/config.yaml"
+	case "windows":
+		return filepath.Join(os.Getenv("ProgramData"), "dirclean", "config.yaml")
+	default:
+		return "config.yaml"
+	}
+}
+
+// LoadConfig attempts to load the config file from the specified path or default location
 func LoadConfig(configFile string) GlobalConfig {
 	var err error
 	var f *os.File
 
-	// Try to open the specified config file
+	// If no config file is specified, use the default path
+	if configFile == "config.yaml" {
+		configFile = getDefaultConfigPath()
+	}
+
+	// Try to open the config file
 	f, err = os.Open(configFile)
 	if err != nil {
-		// If the specified file doesn't exist, try the example config
 		examplePath := GetExampleConfigPath()
-		f, err = os.Open(examplePath)
-		if err != nil {
-			logging.LogMessage("FATAL", fmt.Sprintf("Error opening config file %s or example config %s: %v", configFile, examplePath, err))
-			os.Exit(1)
-		}
-		logging.LogMessage("INFO", fmt.Sprintf("Using example config from %s", examplePath))
+		logging.LogMessage("FATAL", fmt.Sprintf(
+			"Could not find config file at %s\n"+
+				"To get started, copy the example config:\n"+
+				"Example config location: %s\n"+
+				"Run: sudo mkdir -p $(dirname %s) && sudo cp %s %s",
+			configFile, examplePath, configFile, examplePath, configFile))
+		os.Exit(1)
 	}
 	defer f.Close()
 
