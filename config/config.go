@@ -116,9 +116,12 @@ func LoadConfig(configFile string) GlobalConfig {
 		os.Exit(1)
 	}
 
+	logging.LogMessage("DEBUG", fmt.Sprintf("Loaded defaults: %+v", globalConfig.Defaults))
+
 	// Merge defaults with each rule
 	for i := range globalConfig.Rules {
-		// Add this check for OlderThanDays
+		logging.LogMessage("DEBUG", fmt.Sprintf("Before merge - Rule %d: %+v", i, globalConfig.Rules[i]))
+
 		if globalConfig.Rules[i].OlderThanDays == 0 {
 			globalConfig.Rules[i].OlderThanDays = globalConfig.Defaults.OlderThanDays
 		}
@@ -135,6 +138,8 @@ func LoadConfig(configFile string) GlobalConfig {
 		if !globalConfig.Rules[i].CleanBrokenSymlinks {
 			globalConfig.Rules[i].CleanBrokenSymlinks = globalConfig.Defaults.CleanBrokenSymlinks
 		}
+
+		logging.LogMessage("DEBUG", fmt.Sprintf("After merge - Rule %d: %+v", i, globalConfig.Rules[i]))
 	}
 
 	logging.LogMessage("DEBUG", fmt.Sprintf("Loaded config: %+v", globalConfig))
