@@ -101,6 +101,7 @@ func main() {
 	}
 
 	var globalConfig config.GlobalConfig
+	var cliFlags config.CLIFlags
 
 	if *noConfigFlag {
 		if err := validateNoConfigFlags(); err != nil {
@@ -119,6 +120,15 @@ func main() {
 		if err != nil {
 			logging.LogMessage("FATAL", fmt.Sprintf("Error parsing max file size: %v", err))
 			os.Exit(1)
+		}
+
+		// Populate cliFlags
+		cliFlags = config.CLIFlags{
+			Mode:        *modeFlag,
+			LogFile:     *logFlag,
+			LogLevel:    *logLevelFlag,
+			MinFileSize: minSize,
+			MaxFileSize: maxSize,
 		}
 
 		paths := strings.Split(*pathsFlag, ",")
