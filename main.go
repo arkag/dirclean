@@ -118,5 +118,21 @@ func main() {
 		logging.LogMessage("ERROR", fmt.Sprintf("Error getting disk usage after: %v", err))
 	}
 
-	fileutils.PrintSummary(tempFile.Name(), dfBefore, dfAfter, logging.GenerateUUID())
+	// Collect all paths from all rules
+	var allPaths []string
+	for _, rule := range globalConfig.Rules {
+		allPaths = append(allPaths, rule.Paths...)
+	}
+
+	// Remove duplicates from allPaths
+	pathMap := make(map[string]bool)
+	var uniquePaths []string
+	for _, path := range allPaths {
+		if !pathMap[path] {
+			pathMap[path] = true
+			uniquePaths = append(uniquePaths, path)
+		}
+	}
+
+	fileutils.PrintSummary(tempFile.Name(), dfBefore, dfAfter, logging.GenerateUUID(), uniquePaths)
 }

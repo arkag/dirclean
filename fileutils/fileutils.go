@@ -40,7 +40,7 @@ func GetDF(path string) (map[string]uint64, error) {
 	return diskUsage, nil
 }
 
-func PrintSummary(tempFile string, dfBefore, dfAfter map[string]uint64, runID string) {
+func PrintSummary(tempFile string, dfBefore, dfAfter map[string]uint64, runID string, paths []string) {
 	fileCount := CountLines(tempFile)
 	fileSize := GetTotalSize(tempFile)
 
@@ -50,6 +50,16 @@ func PrintSummary(tempFile string, dfBefore, dfAfter map[string]uint64, runID st
 	fmt.Printf("Script:\t\t\t%s/%s\n", filepath.Dir(os.Args[0]), filepath.Base(os.Args[0]))
 	fmt.Printf("Run ID:\t\t\t%s\n", runID)
 	fmt.Printf("Time:\t\t\t%s\n", time.Now().Format("2006-01-02 15:04"))
+
+	// Add paths section
+	fmt.Println("\nPaths searched:")
+	fmt.Println("-------------------------------------------------------------------------------")
+	for _, path := range paths {
+		fmt.Printf("- %s\n", path)
+	}
+
+	fmt.Println("\nResults:")
+	fmt.Println("-------------------------------------------------------------------------------")
 	fmt.Printf("Total files processed:\t%d\n", fileCount)
 	fmt.Printf("Total size of files:\t%.2f GB\n", fileSize)
 
