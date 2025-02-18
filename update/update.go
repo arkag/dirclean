@@ -142,25 +142,41 @@ func extractBinary(archiveData []byte, tmpDir string) (string, error) {
 	return binaryPath, nil
 }
 
-func UpdateBinary(tag string) error {
-	if tag == "latest" {
-		logging.LogMessage("DEBUG", "Fetching latest release tag...")
-		resp, err := http.Get("https://api.github.com/repos/arkag/dirclean/releases/latest")
-		if err != nil {
-			return fmt.Errorf("failed to fetch latest release: %v", err)
-		}
-		defer resp.Body.Close()
+func GetLatestVersion() (string, error) {
+	resp, err := http.Get("https://api.github.com/repos/arkag/dirclean/releases/latest")
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch latest release: %v", err)
+	}
+	defer resp.Body.Close()
 
-		var release struct {
-			TagName string `json:"tag_name"`
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("failed to parse release info: %v", err)
+	}
+	return release.TagName, nil
+}
+
+func UpdateBinary(tag string) error {
+	currentVersion := AppVersion
+	targetVersion := tag
+
+	if tag == "latest" {
+		var err error
+		targetVersion, err = GetLatestVersion()
+		if err != nil {
+			return err
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-			return fmt.Errorf("failed to parse release info: %v", err)
-		}
-		tag = release.TagName
 	}
 
-	downloadURL := fmt.Sprintf(UpdateURL, tag)
+	// Compare versions
+	if currentVersion == targetVersion {
+		logging.LogMessage("INFO", fmt.Sprintf("Already running version %s. No update needed.", currentVersion))
+		return nil
+	}
+
+	downloadURL := fmt.Sprintf(UpdateURL, targetVersion)
 	logging.LogMessage("DEBUG", fmt.Sprintf("Downloading from: %s", downloadURL))
 
 	archiveData, err := downloadFile(downloadURL)
@@ -168,7 +184,7 @@ func UpdateBinary(tag string) error {
 		return fmt.Errorf("failed to download: %v", err)
 	}
 
-	if err := verifyChecksum(archiveData, tag); err != nil {
+	if err := verifyChecksum(archiveData, targetVersion); err != nil {
 		return fmt.Errorf("checksum verification failed: %v", err)
 	}
 
@@ -192,6 +208,6 @@ func UpdateBinary(tag string) error {
 		return fmt.Errorf("error replacing binary: %v", err)
 	}
 
-	logging.LogMessage("INFO", fmt.Sprintf("Successfully updated to version %s", tag))
+	logging.LogMessage("INFO", fmt.Sprintf("Successfully updated from version %s to %s", currentVersion, targetVersion))
 	return nil
 }
