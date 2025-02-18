@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/arkag/dirclean/config"
 	"github.com/arkag/dirclean/fileutils"
@@ -22,6 +23,9 @@ var (
 	logLevelFlag = flag.String("log-level", "", "Log level (DEBUG, INFO, WARN, ERROR, FATAL)")
 	minSizeFlag  = flag.String("min-size", "", "Minimum file size (e.g., 100MB)")
 	maxSizeFlag  = flag.String("max-size", "", "Maximum file size (e.g., 1GB)")
+	noConfigFlag = flag.Bool("no-config", false, "Use command-line arguments for configuration instead of a config file")
+	pathsFlag    = flag.String("paths", "", "Paths to clean (required when using --no-config)")
+	daysFlag     = flag.Int("days", 0, "Number of days old files should be (required when using --no-config)")
 )
 
 func parseFileSize(sizeStr string) (*config.FileSize, error) {
@@ -39,6 +43,43 @@ func parseFileSize(sizeStr string) (*config.FileSize, error) {
 	size.Value = value
 	size.Unit = unit
 	return size, nil
+}
+
+func validateNoConfigFlags() error {
+	if !*noConfigFlag {
+		return nil
+	}
+
+	var missingFlags []string
+
+	if *pathsFlag == "" {
+		missingFlags = append(missingFlags, "paths")
+	}
+	if *daysFlag == 0 {
+		missingFlags = append(missingFlags, "days")
+	}
+	if *modeFlag == "" {
+		missingFlags = append(missingFlags, "mode")
+	}
+	if *logFlag == "" {
+		missingFlags = append(missingFlags, "log")
+	}
+	if *logLevelFlag == "" {
+		missingFlags = append(missingFlags, "log-level")
+	}
+	if *minSizeFlag == "" {
+		missingFlags = append(missingFlags, "min-size")
+	}
+	if *maxSizeFlag == "" {
+		missingFlags = append(missingFlags, "max-size")
+	}
+
+	if len(missingFlags) > 0 {
+		return fmt.Errorf("when using --no-config, the following flags are required: %s",
+			strings.Join(missingFlags, ", "))
+	}
+
+	return nil
 }
 
 func main() {
@@ -59,27 +100,51 @@ func main() {
 		return
 	}
 
-	// Parse file sizes from flags
-	minSize, err := parseFileSize(*minSizeFlag)
-	if err != nil {
-		logging.LogMessage("FATAL", fmt.Sprintf("Error parsing min file size: %v", err))
-		os.Exit(1)
-	}
+	var globalConfig config.GlobalConfig
 
-	maxSize, err := parseFileSize(*maxSizeFlag)
-	if err != nil {
-		logging.LogMessage("FATAL", fmt.Sprintf("Error parsing max file size: %v", err))
-		os.Exit(1)
-	}
+	if *noConfigFlag {
+		if err := validateNoConfigFlags(); err != nil {
+			logging.LogMessage("FATAL", err.Error())
+			os.Exit(1)
+		}
 
-	// Load config and merge with CLI flags
-	globalConfig := config.LoadConfig(*configFlag)
-	cliFlags := config.CLIFlags{
-		Mode:        *modeFlag,
-		LogFile:     *logFlag,
-		LogLevel:    *logLevelFlag,
-		MinFileSize: minSize,
-		MaxFileSize: maxSize,
+		// Parse file sizes from flags
+		minSize, err := parseFileSize(*minSizeFlag)
+		if err != nil {
+			logging.LogMessage("FATAL", fmt.Sprintf("Error parsing min file size: %v", err))
+			os.Exit(1)
+		}
+
+		maxSize, err := parseFileSize(*maxSizeFlag)
+		if err != nil {
+			logging.LogMessage("FATAL", fmt.Sprintf("Error parsing max file size: %v", err))
+			os.Exit(1)
+		}
+
+		paths := strings.Split(*pathsFlag, ",")
+		for i, path := range paths {
+			paths[i] = strings.TrimSpace(path)
+		}
+
+		rule := config.Config{
+			OlderThanDays: *daysFlag,
+			Paths:         paths,
+			Mode:          *modeFlag,
+			LogLevel:      *logLevelFlag,
+			LogFile:       *logFlag,
+			MinFileSize:   minSize,
+			MaxFileSize:   maxSize,
+		}
+
+		globalConfig = config.GlobalConfig{
+			Rules: []config.Config{rule},
+		}
+	} else {
+		if *configFlag == "" {
+			logging.LogMessage("FATAL", "Either --config or --no-config must be specified")
+			os.Exit(1)
+		}
+		globalConfig = config.LoadConfig(*configFlag)
 	}
 
 	// Initialize logging with merged config

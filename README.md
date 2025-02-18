@@ -155,19 +155,39 @@ dirclean [flags]
 ```
 
 ### Flags
+When using config file (default mode):
 - `--config`: Path to config file (default: `config.yaml`)
-- `--update`: Update to the latest version
-- `--version`: Show version information
-- `--log`: Path to log file (default: `dirclean.log`)
-- `--log-level`: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`) (default: `INFO`)
+
+When using --no-config mode (all flags below are required):
+- `--no-config`: Disable config file parsing and use only CLI options
+- `--paths`: Comma-separated list of paths to clean
+- `--days`: Number of days after which files are considered old
+- `--mode`: Operation mode (`analyze`, `dry-run`, `interactive`, `scheduled`)
+- `--log`: Path to log file
+- `--log-level`: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`)
 - `--min-size`: Minimum file size (e.g., `100MB`)
 - `--max-size`: Maximum file size (e.g., `1GB`)
-- `--mode`: Operation mode (`analyze`, `dry-run`, `interactive`, `scheduled`) (default: `dry-run`)
+
+Other flags:
+- `--update`: Update to the latest version
+- `--version`: Show version information
 - `--tag`: Version tag for update (default: `latest`)
 
-Example:
+Example with config file:
 ```bash
-dirclean --config /etc/dirclean/config.yaml --log-level DEBUG --mode interactive
+dirclean --config /etc/dirclean/config.yaml
+```
+
+Example without config file (all options required):
+```bash
+dirclean --no-config \
+  --paths "/tmp,/var/tmp" \
+  --days 7 \
+  --mode interactive \
+  --log /var/log/dirclean.log \
+  --log-level INFO \
+  --min-size 100MB \
+  --max-size 1GB
 ```
 
 Note: By default, all operations run in `dry-run` mode for safety. Use the `--mode` flag to change this behavior.
