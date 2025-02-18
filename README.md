@@ -136,7 +136,7 @@ The example configuration includes:
 
 ### Configuration Options
 
-- **`delete_older_than_days`**: Number of days after which files are considered old and eligible for deletion
+- **`older_than_days`**: Number of days after which files are considered old and eligible for deletion
 - **`paths`**: List of directories to clean. Supports wildcards (`*`) for matching multiple directories
 - **`mode`**: Operation mode (default: `dry-run`)
   - `analyze`: Only report files that would be deleted

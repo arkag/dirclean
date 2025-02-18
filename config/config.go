@@ -17,7 +17,7 @@ type FileSize struct {
 }
 
 type Config struct {
-	DeleteOlderThanDays int       `yaml:"delete_older_than_days"`
+	OlderThanDays       int       `yaml:"older_than_days"`
 	Paths               []string  `yaml:"paths"`
 	MinFileSize         *FileSize `yaml:"min_file_size,omitempty"`
 	MaxFileSize         *FileSize `yaml:"max_file_size,omitempty"`
@@ -116,15 +116,23 @@ func LoadConfig(configFile string) GlobalConfig {
 		os.Exit(1)
 	}
 
-	// Set default values if not specified
-	if globalConfig.Defaults.Mode == "" {
-		globalConfig.Defaults.Mode = "dry-run"
-	}
-	if globalConfig.Defaults.LogLevel == "" {
-		globalConfig.Defaults.LogLevel = "INFO"
-	}
-	if globalConfig.Defaults.LogFile == "" {
-		globalConfig.Defaults.LogFile = "dirclean.log"
+	// Merge defaults with each rule
+	for i := range globalConfig.Rules {
+		if globalConfig.Rules[i].OlderThanDays == 0 {
+			globalConfig.Rules[i].OlderThanDays = globalConfig.Defaults.OlderThanDays
+		}
+		if globalConfig.Rules[i].Mode == "" {
+			globalConfig.Rules[i].Mode = globalConfig.Defaults.Mode
+		}
+		if globalConfig.Rules[i].LogLevel == "" {
+			globalConfig.Rules[i].LogLevel = globalConfig.Defaults.LogLevel
+		}
+		if globalConfig.Rules[i].LogFile == "" {
+			globalConfig.Rules[i].LogFile = globalConfig.Defaults.LogFile
+		}
+		if !globalConfig.Rules[i].CleanBrokenSymlinks {
+			globalConfig.Rules[i].CleanBrokenSymlinks = globalConfig.Defaults.CleanBrokenSymlinks
+		}
 	}
 
 	logging.LogMessage("DEBUG", fmt.Sprintf("Loaded config: %+v", globalConfig))
@@ -174,9 +182,9 @@ func ValidateConfig(config Config) error {
 		return fmt.Errorf("invalid log level: %s", config.LogLevel)
 	}
 
-	// Validate delete_older_than_days
-	if config.DeleteOlderThanDays < 0 {
-		return fmt.Errorf("delete_older_than_days must be non-negative, got: %d", config.DeleteOlderThanDays)
+	// Validate older_than_days
+	if config.OlderThanDays < 0 {
+		return fmt.Errorf("older_than_days must be non-negative, got: %d", config.OlderThanDays)
 	}
 
 	return nil
