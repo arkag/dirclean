@@ -181,7 +181,8 @@ func handleOldFile(mode string, path string, fileSize int64, modTime time.Time, 
 		logging.LogMessage("INFO", fmt.Sprintf("Found candidate: %s (size: %s, modified: %s)",
 			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
 	case "dry-run":
-		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
+		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s (size: %s, modified: %s)",
+			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
 		fmt.Fprintln(tempFile, path)
 	case "interactive":
 		// Clear line and print file info
@@ -218,12 +219,13 @@ func handleOldFile(mode string, path string, fileSize int64, modTime time.Time, 
 			fmt.Printf("→ Skipped: %s\n", path)
 		}
 	case "scheduled":
-		logging.LogMessage("INFO", fmt.Sprintf("Scheduled deletion of file: %s (size: %s, modified: %s)",
+		logging.LogMessage("INFO", fmt.Sprintf("Deleting file: %s (size: %s, modified: %s)",
 			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
 		deleteFile(path, tempFile)
 	default:
 		logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", mode))
-		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
+		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s (size: %s, modified: %s)",
+			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
 		fmt.Fprintln(tempFile, path)
 	}
 }
