@@ -233,19 +233,6 @@ func ValidateDirs(dirs []string) []string {
 	return matchedDirs
 }
 
-func formatSize(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
-}
-
 func handleBrokenSymlink(mode string, path string, tempFile *os.File) {
 	switch mode {
 	case "analyze":
@@ -278,14 +265,42 @@ func handleOldFile(mode string, path string, fileSize int64, modTime time.Time, 
 		logging.LogMessage("INFO", fmt.Sprintf("Would delete file: %s", path))
 		fmt.Fprintln(tempFile, path)
 	case "interactive":
-		fmt.Printf("Delete file %s? (size: %s, modified: %s) (y/n): ",
-			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02"))
+		// Clear line and print file info
+		fmt.Print("\033[2K\r") // Clear current line
+		fmt.Printf("\n%s\n", strings.Repeat("-", 80))
+		fmt.Printf("File: %s\n", path)
+		fmt.Printf("Size: %s\n", fileutils.FormatSize(fileSize))
+		fmt.Printf("Modified: %s (%s ago)\n",
+			modTime.Format("2006-01-02 15:04:05"),
+			formatTimeAgo(time.Since(modTime)))
+
+		// Add file type info if possible
+		if ext := filepath.Ext(path); ext != "" {
+			fmt.Printf("Type: %s file\n", strings.TrimPrefix(ext, "."))
+		}
+
+		fmt.Printf("%s\n", strings.Repeat("-", 80))
+		fmt.Print("Actions: [d]elete, [s]kip, [q]uit: ")
+
 		var response string
 		fmt.Scanln(&response)
-		if response == "y" || response == "Y" {
+		response = strings.ToLower(strings.TrimSpace(response))
+
+		switch response {
+		case "d":
 			deleteFile(path, tempFile)
+			fmt.Printf("✓ Deleted: %s\n", path)
+		case "q":
+			fmt.Println("\nExiting interactive mode...")
+			os.Exit(0)
+		case "s":
+			fmt.Printf("→ Skipped: %s\n", path)
+		default:
+			fmt.Printf("→ Skipped: %s\n", path)
 		}
 	case "scheduled":
+		logging.LogMessage("INFO", fmt.Sprintf("Scheduled deletion of file: %s (size: %s, modified: %s)",
+			path, fileutils.FormatSize(fileSize), modTime.Format("2006-01-02")))
 		deleteFile(path, tempFile)
 	default:
 		logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", mode))
@@ -299,6 +314,32 @@ func deleteFile(path string, tempFile *os.File) {
 		logging.LogMessage("ERROR", fmt.Sprintf("Error deleting file %s: %v", path, err))
 	} else {
 		logging.LogMessage("INFO", fmt.Sprintf("Deleted file: %s", path))
-		fmt.Fprintln(tempFile, path)
+		// Write to temp file for summary
+		if _, err := fmt.Fprintln(tempFile, path); err != nil {
+			logging.LogMessage("ERROR", fmt.Sprintf("Error writing to temp file: %v", err))
+		}
+	}
+}
+
+// formatTimeAgo returns a human-readable string representing how long ago a time was
+func formatTimeAgo(duration time.Duration) string {
+	days := int(duration.Hours() / 24)
+	months := days / 30
+	years := months / 12
+
+	switch {
+	case years > 0:
+		return fmt.Sprintf("%d years", years)
+	case months > 0:
+		return fmt.Sprintf("%d months", months)
+	case days > 0:
+		return fmt.Sprintf("%d days", days)
+	default:
+		hours := int(duration.Hours())
+		if hours > 0 {
+			return fmt.Sprintf("%d hours", hours)
+		}
+		minutes := int(duration.Minutes())
+		return fmt.Sprintf("%d minutes", minutes)
 	}
 }

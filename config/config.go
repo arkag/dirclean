@@ -118,6 +118,7 @@ func LoadConfig(configFile string) GlobalConfig {
 
 	// Merge defaults with each rule
 	for i := range globalConfig.Rules {
+		// Add this check for OlderThanDays
 		if globalConfig.Rules[i].OlderThanDays == 0 {
 			globalConfig.Rules[i].OlderThanDays = globalConfig.Defaults.OlderThanDays
 		}
@@ -130,6 +131,7 @@ func LoadConfig(configFile string) GlobalConfig {
 		if globalConfig.Rules[i].LogFile == "" {
 			globalConfig.Rules[i].LogFile = globalConfig.Defaults.LogFile
 		}
+		// Change this to check explicitly for false
 		if !globalConfig.Rules[i].CleanBrokenSymlinks {
 			globalConfig.Rules[i].CleanBrokenSymlinks = globalConfig.Defaults.CleanBrokenSymlinks
 		}
