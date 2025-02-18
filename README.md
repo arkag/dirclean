@@ -17,11 +17,10 @@ This project was developed with the assistance of Augment, an AI language model 
 ## Features
 
 - **Configurable**: Define directories and file retention policies in a YAML configuration file
-- **Dry Run Mode**: Preview which files would be deleted without actually removing them
+- **Multiple Operation Modes**: Support for analyze, dry-run, interactive, and scheduled modes
 - **Logging**: Detailed logging for debugging and monitoring
 - **Cross-Platform**: Built with Go, runs on Linux, macOS, and Windows
 - **Auto-Update**: Built-in mechanism to update to the latest version
-- **Multiple Package Formats**: Available as `.deb`, `.rpm`, and Arch Linux packages
 
 ---
 
@@ -110,40 +109,48 @@ The program uses a YAML configuration file to define the directories and retenti
 - macOS: `/usr/local/share/dirclean/example.config.yaml`
 - Windows: `C:\ProgramData\dirclean\example.config.yaml`
 
-To get started, copy the example configuration to your preferred location:
-
-```bash
-# Linux/macOS
-cp /usr/share/dirclean/example.config.yaml ~/.config/dirclean/config.yaml
-
-# Windows (PowerShell)
-Copy-Item "C:\ProgramData\dirclean\example.config.yaml" "$env:USERPROFILE\.config\dirclean\config.yaml"
-```
-
-Then modify the configuration file according to your needs. By default, all operations run in dry-run mode for safety.
-
-To use a custom configuration file:
-```bash
-dirclean --config /path/to/your/config.yaml
-```
-
 ### Example Configuration
-The example configuration includes:
-- Cleaning files older than 7 days in `~/Downloads` and `~/Documents/temp`
-- Cleaning files older than 1 day in `/tmp` and `/var/tmp`
-- All operations in dry-run mode by default
-- Size-based filtering examples
+```yaml
+defaults:
+  older_than_days: 30
+  mode: dry-run # All operations default to dry-run for safety
+  log_level: INFO
+  log_file: dirclean.log
+  clean_broken_symlinks: false # Default to false for safety
+
+rules:
+  # Example 1: Minimal configuration with only required paths and mode
+  - paths:
+      - /var/lib/**/*
+    mode: analyze
+
+  # Example 2: Override some defaults
+  - paths:
+      - ~/Downloads
+      - ~/Documents/temp
+    older_than_days: 7
+    clean_broken_symlinks: true
+
+  # Example 3: Another minimal configuration
+  - paths:
+      - /tmp/*
+      - /var/tmp/*
+    older_than_days: 1
+    mode: interactive
+```
 
 ### Configuration Options
 
 - **`older_than_days`**: Number of days after which files are considered old and eligible for deletion
 - **`paths`**: List of directories to clean. Supports wildcards (`*`) for matching multiple directories
-- **`mode`**: Operation mode (default: `dry-run`)
+- **`mode`**: Operation mode
   - `analyze`: Only report files that would be deleted
   - `dry-run`: List files that would be deleted without actually removing them
   - `interactive`: Prompt for confirmation before deleting each file
   - `scheduled`: Delete files automatically without confirmation
 - **`clean_broken_symlinks`**: Boolean flag to enable cleaning of broken symbolic links (default: `false`)
+- **`log_level`**: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`)
+- **`log_file`**: Path to log file
 
 ---
 
@@ -155,39 +162,24 @@ dirclean [flags]
 ```
 
 ### Flags
-When using config file (default mode):
 - `--config`: Path to config file (default: `config.yaml`)
-
-When using --no-config mode (all flags below are required):
-- `--no-config`: Disable config file parsing and use only CLI options
-- `--paths`: Comma-separated list of paths to clean
-- `--days`: Number of days after which files are considered old
-- `--mode`: Operation mode (`analyze`, `dry-run`, `interactive`, `scheduled`)
+- `--mode`: Only process paths configured with this mode (`analyze`, `dry-run`, `interactive`, `scheduled`)
 - `--log`: Path to log file
 - `--log-level`: Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`)
-- `--min-size`: Minimum file size (e.g., `100MB`)
-- `--max-size`: Maximum file size (e.g., `1GB`)
-
-Other flags:
 - `--update`: Update to the latest version
 - `--version`: Show version information
 - `--tag`: Version tag for update (default: `latest`)
 
-Example with config file:
+Example:
 ```bash
-dirclean --config /etc/dirclean/config.yaml
-```
+# Process only paths configured with interactive mode
+dirclean --mode interactive
 
-Example without config file (all options required):
-```bash
-dirclean --no-config \
-  --paths "/tmp,/var/tmp" \
-  --days 7 \
-  --mode interactive \
-  --log /var/log/dirclean.log \
-  --log-level INFO \
-  --min-size 100MB \
-  --max-size 1GB
+# Use a specific config file
+dirclean --config /etc/dirclean/config.yaml
+
+# Update to the latest version
+dirclean --update
 ```
 
 Note: By default, all operations run in `dry-run` mode for safety. Use the `--mode` flag to change this behavior.
