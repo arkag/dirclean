@@ -267,15 +267,36 @@ func formatTimeAgo(duration time.Duration) string {
 
 // Helper function to process a single path
 func processPath(path string, info os.FileInfo, config config.Config, tempFile *os.File, days int, minBytes, maxBytes int64) error {
-	// Special handling for "**" pattern
+	// Handle recursive patterns ("**")
 	if strings.Contains(path, "**") {
-		baseDir := path[:strings.Index(path, "**")]
+		// Find the base directory (everything before **)
+		parts := strings.Split(path, "**")
+		baseDir := parts[0]
+
+		// Remove trailing slash if present
+		baseDir = strings.TrimRight(baseDir, "/\\")
+
+		// Get the remaining pattern after **
+		remainingPattern := ""
+		if len(parts) > 1 {
+			remainingPattern = parts[1]
+		}
+
 		return filepath.Walk(baseDir, func(subPath string, subInfo os.FileInfo, err error) error {
 			if err != nil {
 				logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", subPath, err))
 				return filepath.SkipDir
 			}
-			// Process each file in the directory tree
+
+			// If there's a remaining pattern, check if the path matches
+			if remainingPattern != "" {
+				relPath := strings.TrimPrefix(subPath, baseDir)
+				matched, err := filepath.Match(remainingPattern, relPath)
+				if err != nil || !matched {
+					return nil
+				}
+			}
+
 			if !subInfo.IsDir() {
 				return processFile(subPath, subInfo, config, tempFile, days, minBytes, maxBytes)
 			}
