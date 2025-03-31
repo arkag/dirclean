@@ -128,7 +128,26 @@ func ValidateDirs(dirs []string) []string {
 	for _, dir := range dirs {
 		// If the path contains wildcards, add it directly to matched dirs
 		if strings.Contains(dir, "*") {
-			// Extract the base path (everything before the first wildcard)
+			// Special handling for "**" pattern
+			if strings.Contains(dir, "**") {
+				// Extract the base path (everything before **)
+				basePath := dir[:strings.Index(dir, "**")]
+				if basePath == "" {
+					logging.LogMessage("ERROR", fmt.Sprintf("Invalid recursive path: %s", dir))
+					continue
+				}
+
+				// Verify the base path exists
+				if info, err := os.Stat(basePath); err == nil && info.IsDir() {
+					logging.LogMessage("DEBUG", fmt.Sprintf("Added recursive path: %s", dir))
+					matchedDirs = append(matchedDirs, dir)
+				} else {
+					logging.LogMessage("ERROR", fmt.Sprintf("Base directory does not exist or is not accessible: %s", basePath))
+				}
+				continue
+			}
+
+			// Handle regular wildcards
 			basePath := dir[:strings.Index(dir, "*")]
 			if basePath == "" {
 				logging.LogMessage("ERROR", fmt.Sprintf("Invalid wildcard path: %s", dir))
