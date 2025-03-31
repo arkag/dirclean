@@ -50,7 +50,16 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 					return filepath.SkipDir
 				}
 
-				// Check if the path matches the pattern
+				// Special handling for "**" pattern
+				if strings.Contains(dir, "**") {
+					if !info.IsDir() {
+						// For "**" patterns, process all files regardless of depth
+						return processPath(path, info, config, tempFile, days, minBytes, maxBytes)
+					}
+					return nil
+				}
+
+				// Regular wildcard handling
 				matched, err := filepath.Match(pattern, path[len(basePath):])
 				if err != nil {
 					logging.LogMessage("ERROR", fmt.Sprintf("Error matching pattern: %v", err))
@@ -58,8 +67,7 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 				}
 
 				if matched {
-					// Process the matched file/directory
-					processPath(path, info, config, tempFile, days, minBytes, maxBytes)
+					return processPath(path, info, config, tempFile, days, minBytes, maxBytes)
 				}
 				return nil
 			})
