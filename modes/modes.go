@@ -267,10 +267,31 @@ func formatTimeAgo(duration time.Duration) string {
 
 // Helper function to process a single path
 func processPath(path string, info os.FileInfo, config config.Config, tempFile *os.File, days int, minBytes, maxBytes int64) error {
+	// Special handling for "**" pattern
+	if strings.Contains(path, "**") {
+		baseDir := path[:strings.Index(path, "**")]
+		return filepath.Walk(baseDir, func(subPath string, subInfo os.FileInfo, err error) error {
+			if err != nil {
+				logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", subPath, err))
+				return filepath.SkipDir
+			}
+			// Process each file in the directory tree
+			if !subInfo.IsDir() {
+				return processFile(subPath, subInfo, config, tempFile, days, minBytes, maxBytes)
+			}
+			return nil
+		})
+	}
+
 	if info.IsDir() {
 		return nil
 	}
 
+	return processFile(path, info, config, tempFile, days, minBytes, maxBytes)
+}
+
+// New helper function to handle individual file processing
+func processFile(path string, info os.FileInfo, config config.Config, tempFile *os.File, days int, minBytes, maxBytes int64) error {
 	// Check for broken symlinks first if enabled
 	if config.CleanBrokenSymlinks {
 		linkInfo, err := os.Lstat(path)
