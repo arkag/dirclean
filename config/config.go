@@ -25,6 +25,7 @@ type Config struct {
 	LogLevel            string    `yaml:"log_level,omitempty"`
 	LogFile             string    `yaml:"log_file,omitempty"`
 	CleanBrokenSymlinks bool      `yaml:"clean_broken_symlinks,omitempty"`
+	CleanEmptyDirs      bool      `yaml:"clean_empty_dirs,omitempty"`
 }
 
 type GlobalConfig struct {
@@ -161,6 +162,10 @@ func LoadConfig(configFile string) GlobalConfig {
 		// Change this to check explicitly for false
 		if !globalConfig.Rules[i].CleanBrokenSymlinks {
 			globalConfig.Rules[i].CleanBrokenSymlinks = globalConfig.Defaults.CleanBrokenSymlinks
+		}
+		// Add the new field
+		if !globalConfig.Rules[i].CleanEmptyDirs {
+			globalConfig.Rules[i].CleanEmptyDirs = globalConfig.Defaults.CleanEmptyDirs
 		}
 
 		logging.LogMessage("DEBUG", fmt.Sprintf("After merge - Rule %d: %+v", i, globalConfig.Rules[i]))

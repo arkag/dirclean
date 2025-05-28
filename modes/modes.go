@@ -75,6 +75,11 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 			if err != nil {
 				logging.LogMessage("ERROR", fmt.Sprintf("Error walking directory %s: %v", basePath, err))
 			}
+
+			// Clean up empty directories after processing files
+			if config.CleanEmptyDirs {
+				cleanEmptyDirs(basePath, config.Mode, tempFile)
+			}
 		} else {
 			// Handle non-wildcard paths as before
 			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -86,6 +91,11 @@ func ProcessFiles(config config.Config, tempFile *os.File) {
 			})
 			if err != nil {
 				logging.LogMessage("ERROR", fmt.Sprintf("Error walking directory %s: %v", dir, err))
+			}
+
+			// Clean up empty directories after processing files
+			if config.CleanEmptyDirs {
+				cleanEmptyDirs(dir, config.Mode, tempFile)
 			}
 		}
 	}
@@ -370,4 +380,68 @@ func processFile(path string, info os.FileInfo, config config.Config, tempFile *
 		handleOldFile(config.Mode, path, fileSize, modTime, tempFile)
 	}
 	return nil
+}
+
+func cleanEmptyDirs(dir string, mode string, tempFile *os.File) {
+	// Walk the directory tree bottom-up
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			logging.LogMessage("ERROR", fmt.Sprintf("Error accessing %s: %v", path, err))
+			return nil
+		}
+
+		// Skip the root directory itself
+		if path == dir {
+			return nil
+		}
+
+		// Only process directories
+		if !info.IsDir() {
+			return nil
+		}
+
+		// Check if directory is empty
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			logging.LogMessage("ERROR", fmt.Sprintf("Error reading directory %s: %v", path, err))
+			return nil
+		}
+
+		if len(entries) == 0 {
+			switch mode {
+			case "analyze":
+				logging.LogMessage("INFO", fmt.Sprintf("Found empty directory: %s", path))
+			case "dry-run":
+				logging.LogMessage("INFO", fmt.Sprintf("Would remove empty directory: %s", path))
+				fmt.Fprintln(tempFile, "EMPTY_DIR:"+path)
+			case "interactive":
+				fmt.Printf("Remove empty directory %s? (y/n): ", path)
+				var response string
+				fmt.Scanln(&response)
+				if response == "y" || response == "Y" {
+					deleteEmptyDir(path, tempFile)
+				}
+			case "scheduled":
+				deleteEmptyDir(path, tempFile)
+			default:
+				logging.LogMessage("WARN", fmt.Sprintf("Unknown mode: %s, defaulting to dry-run", mode))
+				logging.LogMessage("INFO", fmt.Sprintf("Would remove empty directory: %s", path))
+				fmt.Fprintln(tempFile, "EMPTY_DIR:"+path)
+			}
+		}
+
+		return nil
+	})
+}
+
+func deleteEmptyDir(path string, tempFile *os.File) {
+	if err := os.Remove(path); err != nil {
+		logging.LogMessage("ERROR", fmt.Sprintf("Error removing directory %s: %v", path, err))
+	} else {
+		logging.LogMessage("INFO", fmt.Sprintf("Removed empty directory: %s", path))
+		// Write to temp file for summary
+		if _, err := fmt.Fprintln(tempFile, "EMPTY_DIR:"+path); err != nil {
+			logging.LogMessage("ERROR", fmt.Sprintf("Error writing to temp file: %v", err))
+		}
+	}
 }

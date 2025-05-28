@@ -4,6 +4,7 @@ defaults:
   log_level: INFO
   log_file: dirclean.log
   clean_broken_symlinks: false # Default to false for safety
+  clean_empty_dirs: false # Default to false for safety
 
 rules:
   # Example 1: Minimal configuration with only required paths and mode
@@ -18,6 +19,7 @@ rules:
     older_than_days: 7
     min_file_size: 1MB
     clean_broken_symlinks: true # Enable for specific directories
+    clean_empty_dirs: true # Enable cleaning empty directories
 
   # Example 3: Another minimal configuration
   - paths:
